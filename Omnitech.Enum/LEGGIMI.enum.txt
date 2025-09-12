@@ -1,0 +1,9 @@
+﻿
+ENUM con attributi aggiuntivi:     https://stackoverflow.com/questions/1101872/how-to-set-space-on-enum
+
+
+ENUM con stringhe:		https://stackoverflow.com/questions/630803/associating-enums-with-strings-in-c-sharp
+
+
+Oggetti e overload operatori == !=     https://stackoverflow.com/questions/25461585/operator-overloading-equals
+

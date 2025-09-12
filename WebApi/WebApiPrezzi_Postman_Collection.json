@@ -1,0 +1,140 @@
+{
+  "info": {
+    "name": "WebApi Prezzi Collection",
+    "description": "Collection per testare l'API di calcolo prezzi",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Price Evaluation",
+      "item": [
+        {
+          "name": "Evaluate Price - Test Completo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"Airpool\": \"Standard\",\n    \"Altezza\": 150.5,\n    \"Altezza_Incasso\": 120.0,\n    \"AnnelloDistanziale\": \"Type-A\",\n    \"AsseCopertura_Tipo\": \"Automatico\",\n    \"BordoContenitivo_Ant\": \"SI\",\n    \"BordoContenitivo_DX\": \"NO\",\n    \"BordoContenitivo_Post\": \"SI\",\n    \"BordoContenitivo_SX\": \"NO\",\n    \"BordoIkon\": \"Standard\",\n    \"BordoLine\": \"Premium\",\n    \"Btop_x\": 100.0,\n    \"Btop_y\": 200.0,\n    \"Bussole_Top\": \"Type-1\",\n    \"Categoria\": \"Premium\",\n    \"Catino_Lunghezza\": 180.0,\n    \"Catino_Profondita\": 60.0,\n    \"CodiceColore\": \"RAL9010\",\n    \"CodiceMateriale\": \"MAT001\",\n    \"CodiceMateriale_S2\": \"MAT002\",\n    \"CodiceMateriale_S3\": \"MAT003\",\n    \"Colorato\": \"SI\",\n    \"DisegnoDaAttenzionare\": \"NO\",\n    \"Erogatore\": \"Standard\",\n    \"FamigliaProdotto\": \"VASCHE\",\n    \"Finitura_foro\": \"Lucida\",\n    \"Foratura_Tipo\": \"Centrale\",\n    \"ForoMix\": \"SI\",\n    \"ForoMix_Dimensione\": 35.0,\n    \"ForoMix_Offset_X\": 0.0,\n    \"ForoMix_Qta\": 1.0,\n    \"ForoMix_X\": 150.0,\n    \"ForoMix_Y\": 75.0,\n    \"Foro_Diametro\": 35.0,\n    \"Foro_Lunghezza\": 50.0,\n    \"Foro_Profondita\": 40.0,\n    \"Foro_Raggio\": 17.5,\n    \"Foro_X\": 150.0,\n    \"Foro_Y\": 75.0,\n    \"FresataLed_Tipo\": \"None\",\n    \"FresataVetro_Anteriore\": \"NO\",\n    \"FresataVetro_DX\": \"NO\",\n    \"FresataVetro_H\": 0.0,\n    \"FresataVetro_Lunghezza_L\": 0.0,\n    \"FresataVetro_Lunghezza_P\": 0.0,\n    \"FresataVetro_P\": 0.0,\n    \"FresataVetro_Posteriore\": \"NO\",\n    \"FresataVetro_SX\": \"NO\",\n    \"FresataVetro_X\": 0.0,\n    \"FresataVetro_Y\": 0.0,\n    \"Giunzione_Anteriore\": \"Standard\",\n    \"Giunzione_DX\": \"Standard\",\n    \"Giunzione_Posteriore\": \"Standard\",\n    \"Giunzione_SX\": \"Standard\",\n    \"Installazione_Tipo\": \"Incasso\",\n    \"InterasseVasca_X\": 100.0,\n    \"InterasseVasca_Y\": 100.0,\n    \"InterasseVasche\": 200.0,\n    \"Interasse_Forature\": 150.0,\n    \"KitCaricaBatterie_ON\": \"NO\",\n    \"LastraPiuVasca\": \"NO\",\n    \"Lav_Bordo_ANT\": \"Standard\",\n    \"Lav_Bordo_DX\": \"Standard\",\n    \"Lav_Bordo_POST\": \"Standard\",\n    \"Lav_Bordo_SX\": \"Standard\",\n    \"Legni_Lunghezza\": 0.0,\n    \"Legni_Posizione\": \"None\",\n    \"Legni_Qta\": 0.0,\n    \"Legno_dx\": 0.0,\n    \"Legno_p1\": 0.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:54340/api/v1/price/evaluate/CUST001",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "54340",
+              "path": [
+                "api",
+                "v1",
+                "price",
+                "evaluate",
+                "CUST001"
+              ]
+            },
+            "description": "Test completo con tutti i campi del ConfigItem popolati"
+          }
+        },
+        {
+          "name": "Evaluate Price - Test Minimo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"Categoria\": \"Standard\",\n    \"Altezza\": 100.0,\n    \"FamigliaProdotto\": \"VASCHE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:54340/api/v1/price/evaluate/TEST123",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "54340",
+              "path": [
+                "api",
+                "v1",
+                "price",
+                "evaluate",
+                "TEST123"
+              ]
+            },
+            "description": "Test con configurazione minima"
+          }
+        },
+        {
+          "name": "Evaluate Price - HTTPS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"Categoria\": \"Premium\",\n    \"Altezza\": 200.0,\n    \"FamigliaProdotto\": \"LAVABI\",\n    \"CodiceMateriale\": \"CERAMICA\",\n    \"CodiceColore\": \"BIANCO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://localhost:44342/api/v1/price/evaluate/PREMIUM001",
+              "protocol": "https",
+              "host": [
+                "localhost"
+              ],
+              "port": "44342",
+              "path": [
+                "api",
+                "v1",
+                "price",
+                "evaluate",
+                "PREMIUM001"
+              ]
+            },
+            "description": "Test usando HTTPS"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:54340",
+      "type": "string"
+    },
+    {
+      "key": "baseUrlHttps",
+      "value": "https://localhost:44342",
+      "type": "string"
+    }
+  ]
+}

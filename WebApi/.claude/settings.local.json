@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/Dev_Omh/WebApiPrezzi/**)",
+      "Bash(dir:*)",
+      "Bash(msbuild:*)",
+      "Bash(dotnet build:*)",
+      "Read(//d/Dev_Omh/psr/ProductionStepRecorder/**)",
+      "Read(//d/Dev_Omh/psr/**)",
+      "Bash(dotnet sln add:*)",
+      "Bash(findstr:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

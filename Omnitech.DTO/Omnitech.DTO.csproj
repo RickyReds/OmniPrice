@@ -1,0 +1,81 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{AF0747B8-0632-490E-9134-39D907859922}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Omnitech.DTO</RootNamespace>
+    <AssemblyName>Omnitech.DTO</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="- CLIENTI\- ImportFiles\Arbi\DTO.cs" />
+    <Compile Include="- CLIENTI\- ImportFiles\Arblu\DTO.cs" />
+    <Compile Include="- CLIENTI\- ImportFiles\Arcom\DTO.cs" />
+    <Compile Include="- CLIENTI\- ImportFiles\Arteba\DTO.cs" />
+    <Compile Include="- CLIENTI\- ImportFiles\Disenia\DTO.cs" />
+    <Compile Include="- CLIENTI\- ImportFiles\RowBaseDTO.cs" />
+    <Compile Include="- CLIENTI\- ImportFiles\Idea\DTO.cs" />
+    <Compile Include="- CLIENTI\- ImportFiles\Stocco\DTO.cs" />
+    <Compile Include="BusinessCentral\Alexide\ConfigItem.cs" />
+    <Compile Include="BusinessCentral\COMMON\Intavolato.cs" />
+    <Compile Include="BusinessCentral\Dashboard\DashboardItem.cs" />
+    <Compile Include="BusinessCentral\Etichette\BcRequestEtichettaStandard.cs" />
+    <Compile Include="BusinessCentral\Etichette\BcResponse.cs" />
+    <Compile Include="BusinessCentral\Etichette\BcResponseEtichettaStandard.cs" />
+    <Compile Include="Cematek\CematekDTO.cs" />
+    <Compile Include="DeviceMonitor\AspirazionePantografi.cs" />
+    <Compile Include="Etichette\DtoAccessorio.cs" />
+    <Compile Include="Etichette\DtoEtichettaStandard.cs" />
+    <Compile Include="Etichette\DtoEtichettaStandardPilette.cs" />
+    <Compile Include="Etichette\DtoOrdineArblu.cs" />
+    <Compile Include="Etichette\Intavolato.cs" />
+    <Compile Include="NAV\Sessione.cs" />
+    <Compile Include="PsrGeneric\Inserimento\ExtraVerniciaturaDTO.cs" />
+    <Compile Include="Tools\Premi\PremiDTO.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Omnitech.Enum\Omnitech.Enum.csproj">
+      <Project>{b9fd22ca-3ecf-4ef5-b3c2-beeffcf3cbf0}</Project>
+      <Name>Omnitech.Enum</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="BusinessCentral\Prezzi\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
