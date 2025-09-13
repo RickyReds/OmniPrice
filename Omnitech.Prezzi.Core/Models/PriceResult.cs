@@ -63,6 +63,11 @@ namespace Omnitech.Prezzi.Core.Models
         /// </summary>
         public DateTime CalculationDate { get; set; }
 
+        /// <summary>
+        /// Query SQL eseguita (solo per debug)
+        /// </summary>
+        public string SqlQuery { get; set; }
+
         public PriceResult()
         {
             Components = new PriceComponents();
