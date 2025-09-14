@@ -548,7 +548,8 @@
                         <label for="queryId">Query ID:</label>
                         <input type="number" id="queryId" value="516" min="1" style="padding: 8px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <button class="btn" onclick="loadQueryTemplate()">📋 Step 1: Carica Template</button>
+                            <button class="btn" onclick="loadQueryTemplate()" id="btnLoadTemplate" style="min-width: 180px;">📋 Step 1: Carica Template</button>
+                            <button class="btn btn-danger" onclick="stopTemplateLoading()" id="btnStopTemplate" style="display: none; min-width: 180px;">🛑 Stop Caricamento</button>
                             <span class="status-indicator" id="queryTemplate-status">
                                 <span class="status-icon idle">-</span>
                                 <span>Nessun template caricato</span>
@@ -561,7 +562,8 @@
                         <h4 style="margin: 0 0 10px 0; color: #374151;">📝 Step 2: Compila Parametri</h4>
                         <div id="queryParametersContainer"></div>
                         <div style="margin-top: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                            <button class="btn btn-success" onclick="executeQueryWithParams()">🚀 Esegui Query</button>
+                            <button class="btn btn-success" onclick="executeQueryWithParams()" id="btnExecuteQuery" style="min-width: 140px;">🚀 Esegui Query</button>
+                            <button class="btn btn-danger" onclick="stopQueryExecution()" id="btnStopQuery" style="display: none; min-width: 140px;">🛑 Stop Query</button>
                             <button class="btn" onclick="clearQueryManagerResults()">🗑️ Pulisci Risultati</button>
                             <span class="status-indicator" id="queryManager-status">
                                 <span class="status-icon idle">-</span>
@@ -1016,10 +1018,20 @@
                 return;
             }
 
+            // Show stop button, hide load button
+            document.getElementById('btnLoadTemplate').style.display = 'none';
+            document.getElementById('btnStopTemplate').style.display = 'inline-block';
+
             updateStatusIndicator('queryTemplate-status', 'running');
             showToast('📋 Caricando template Query ' + queryId + '...', 'info');
 
-            fetch('http://localhost:54340/api/health/query/' + queryId + '/template')
+            // Create AbortController for template loading cancellation
+            var controller = new AbortController();
+            currentTemplateRequest = controller;
+
+            fetch('http://localhost:54340/api/health/query/' + queryId + '/template', {
+                signal: controller.signal
+            })
             .then(function(response) {
                 return response.json();
             })
@@ -1037,11 +1049,29 @@
                 }
             })
             .catch(function(error) {
-                updateStatusIndicator('queryTemplate-status', 'error');
-                showToast('❌ Errore connessione: ' + error.message, 'error');
+                if (error.name === 'AbortError') {
+                    updateStatusIndicator('queryTemplate-status', 'error');
+                    showToast('🛑 Caricamento template interrotto', 'info');
+                } else {
+                    updateStatusIndicator('queryTemplate-status', 'error');
+                    showToast('❌ Errore connessione: ' + error.message, 'error');
+                }
                 queryTemplateData = null;
                 hideQueryParametersSection();
+            })
+            .finally(function() {
+                // Reset buttons regardless of outcome
+                document.getElementById('btnLoadTemplate').style.display = 'inline-block';
+                document.getElementById('btnStopTemplate').style.display = 'none';
+                currentTemplateRequest = null;
             });
+        }
+
+        function stopTemplateLoading() {
+            if (currentTemplateRequest) {
+                currentTemplateRequest.abort();
+                showToast('🛑 Interruzione caricamento template richiesta...', 'info');
+            }
         }
 
         function displayQueryTemplate(data) {
@@ -1089,11 +1119,19 @@
         }
 
         // Step 2: Execute Query with Parameters
+        // Variables to track current requests
+        var currentQueryRequest = null;
+        var currentTemplateRequest = null;
+
         function executeQueryWithParams() {
             if (!queryTemplateData) {
                 showToast('❌ Carica prima il template della query (Step 1)', 'error');
                 return;
             }
+
+            // Show stop button, hide execute button
+            document.getElementById('btnExecuteQuery').style.display = 'none';
+            document.getElementById('btnStopQuery').style.display = 'inline-block';
 
             // Collect parameter values
             var paramValues = {};
@@ -1123,6 +1161,10 @@
             showToast('🚀 Eseguendo Query ' + queryTemplateData.queryId + ' con parametri...', 'info');
             startTimer('queryManager', 'queryManagerTimer');
 
+            // Create AbortController for cancellation
+            var controller = new AbortController();
+            currentQueryRequest = controller;
+
             fetch('http://localhost:54340/api/health/query', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1130,7 +1172,8 @@
                     queryId: queryTemplateData.queryId,
                     parameters: paramValues,
                     dictionaryParameters: dictValues
-                })
+                }),
+                signal: controller.signal
             })
             .then(function(response) {
                 return response.json();
@@ -1149,11 +1192,31 @@
                 }
             })
             .catch(function(error) {
-                updateStatusIndicator('queryManager-status', 'error');
-                showToast('❌ Errore connessione: ' + error.message, 'error');
-                cancelTimer('queryManager', 'queryManagerTimer', 'Errore di connessione');
-                displayQueryManagerError('Endpoint non raggiungibile: ' + error.message);
+                if (error.name === 'AbortError') {
+                    updateStatusIndicator('queryManager-status', 'error');
+                    showToast('🛑 Query interrotta dall\'utente', 'info');
+                    cancelTimer('queryManager', 'queryManagerTimer', 'Query interrotta');
+                    displayQueryManagerError('Query interrotta dall\'utente');
+                } else {
+                    updateStatusIndicator('queryManager-status', 'error');
+                    showToast('❌ Errore connessione: ' + error.message, 'error');
+                    cancelTimer('queryManager', 'queryManagerTimer', 'Errore di connessione');
+                    displayQueryManagerError('Endpoint non raggiungibile: ' + error.message);
+                }
+            })
+            .finally(function() {
+                // Reset buttons regardless of outcome
+                document.getElementById('btnExecuteQuery').style.display = 'inline-block';
+                document.getElementById('btnStopQuery').style.display = 'none';
+                currentQueryRequest = null;
             });
+        }
+
+        function stopQueryExecution() {
+            if (currentQueryRequest) {
+                currentQueryRequest.abort();
+                showToast('🛑 Interruzione query richiesta...', 'info');
+            }
         }
 
         function displayQueryManagerResults(data) {
@@ -1164,6 +1227,10 @@
 
             var html = '<div style="margin: 10px 0; color: #059669; font-weight: bold;">Query ' + data.queryId + ' eseguita con successo!</div>';
 
+            // Get current connection name from the dashboard display
+            var currentConnName = document.getElementById('currentConnName') ? document.getElementById('currentConnName').textContent : 'N/A';
+
+            html += '<div style="margin: 5px 0;"><strong>Connessione:</strong> <span style="color: #4f46e5; font-weight: bold;">' + currentConnName + '</span></div>';
             html += '<div style="margin: 5px 0;"><strong>Durata:</strong> ' + data.duration + '</div>';
             html += '<div style="margin: 5px 0;"><strong>Righe trovate:</strong> ' + data.rowCount + '</div>';
 
@@ -1261,6 +1328,11 @@
             resultsDiv.style.display = 'block';
 
             var html = '<div style="margin: 10px 0; color: #059669; font-weight: bold;">Query eseguita con successo!</div>';
+
+            // Get current connection name from the dashboard display
+            var currentConnName = document.getElementById('currentConnName') ? document.getElementById('currentConnName').textContent : 'N/A';
+
+            html += '<div style="margin: 5px 0;"><strong>Connessione:</strong> <span style="color: #4f46e5; font-weight: bold;">' + currentConnName + '</span></div>';
 
             // Add execution time if available
             if (data.duration) {
@@ -1373,11 +1445,7 @@
             }
 
             // Update quick switch buttons
-            var localBtn = document.getElementById('btnSwitchLocal');
-            var dualBtn = document.getElementById('btnSwitchDual');
-
-            localBtn.className = 'btn' + (currentConnection === 'local' ? ' btn-success' : '');
-            dualBtn.className = 'btn' + (currentConnection === 'dual' ? ' btn-success' : '');
+            updateQuickSwitchButtons(currentConnection);
 
             // Display all available connections
             var container = document.getElementById('availableConnections');
@@ -1387,7 +1455,7 @@
                 var isActive = conn.isActive ? ' (ATTIVA)' : '';
                 var activeClass = conn.isActive ? 'style="background: #ecfdf5; border: 1px solid #10b981;"' : '';
 
-                html += '<div ' + activeClass + ' style="padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; display: grid; grid-template-columns: 1fr 1fr 200px; gap: 10px; align-items: center;">';
+                html += '<div ' + activeClass + ' style="padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 10px; align-items: center;">';
                 html += '<div>';
                 html += '<strong>' + conn.name + isActive + '</strong><br>';
                 html += '<small style="color: #666;">' + conn.dataSource + ' → ' + conn.initialCatalog + '</small>';
@@ -1395,23 +1463,38 @@
                 html += '<div style="font-family: monospace; font-size: 11px; color: #888;">';
                 html += conn.connectionString.substring(0, 80) + (conn.connectionString.length > 80 ? '...' : '');
                 html += '</div>';
-                html += '<div style="display: flex; gap: 5px;">';
 
+                // Use/Switch button (left side of buttons) - Always create div for consistent layout
+                html += '<div style="display: flex; gap: 5px; justify-content: flex-start;">';
                 if (!conn.isActive) {
                     html += '<button class="btn" onclick="switchToConnection(\'' + conn.name + '\')" style="font-size: 12px;">🔄 Usa</button>';
                 }
-
-                html += '<button class="btn" onclick="testConnection(\'' + conn.name + '\')" style="font-size: 12px;">🧪 Test</button>';
-
                 if (conn.name !== 'local' && conn.name !== 'dual') {
                     html += '<button class="btn btn-danger" onclick="removeConnection(\'' + conn.name + '\')" style="font-size: 12px;">🗑️</button>';
                 }
-
+                // Add invisible placeholder if no buttons to maintain grid alignment
+                if (conn.isActive && (conn.name === 'local' || conn.name === 'dual')) {
+                    html += '<span style="min-width: 1px;"></span>'; // Invisible placeholder
+                }
                 html += '</div>';
+
+                // Test button (always on the right)
+                html += '<div style="display: flex; justify-content: flex-end;">';
+                html += '<button class="btn" onclick="testConnection(\'' + conn.name + '\')" style="font-size: 12px;">🧪 Test</button>';
+                html += '</div>';
+
                 html += '</div>';
             });
 
             container.innerHTML = html;
+        }
+
+        function updateQuickSwitchButtons(currentConnection) {
+            var localBtn = document.getElementById('btnSwitchLocal');
+            var dualBtn = document.getElementById('btnSwitchDual');
+
+            localBtn.className = 'btn' + (currentConnection === 'local' ? ' btn-success' : '');
+            dualBtn.className = 'btn' + (currentConnection === 'dual' ? ' btn-success' : '');
         }
 
         function switchToConnection(connectionName) {
@@ -1433,6 +1516,10 @@
                 if (data.success) {
                     updateStatusIndicator('connectionSwitch-status', 'success', 'Connessione cambiata');
                     showToast('🔌 Connessione cambiata a: ' + connectionName, 'success');
+
+                    // Update quick switch buttons immediately
+                    updateQuickSwitchButtons(connectionName);
+
                     // Refresh connections display
                     setTimeout(function() {
                         loadConnections();

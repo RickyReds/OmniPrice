@@ -15,7 +15,7 @@ namespace Omnitech.Prezzi.Infrastructure
         private static readonly Dictionary<string, string> _connections = new Dictionary<string, string>
         {
             { "local", null }, // Will be loaded from config
-            { "dual", "Data Source=192.168.1.190;Initial Catalog=AvanzamentoProduzione;User ID=rickyreds;Password=Omni!2k25@rReds!;Encrypt=True;TrustServerCertificate=True;Connect Timeout=30" },
+            { "dual", "Data Source=192.168.1.90;Initial Catalog=AvanzamentoProduzione;Persist Security Info=True;User ID=rickyreds;Password=Omni!2k25@rReds!;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Application Name=\"SQL Server Management Studio\";Connect Timeout=30" },
         };
 
         private static string _currentConnection = "local";
@@ -65,7 +65,13 @@ namespace Omnitech.Prezzi.Infrastructure
             try
             {
                 var connectionString = GetConnectionString(connectionName);
-                LogMessage($"Testing connection '{connectionName}' with: {HidePassword(connectionString)}");
+
+                // LOG CONNECTION STRING AS FIRST LINE (WITH FULL DETAILS)
+                LogMessage($"=== CONNECTION TEST START ===");
+                LogMessage($"Connection Name: {connectionName}");
+                LogMessage($"Full Connection String: {connectionString}");
+                LogMessage($"Masked Connection String: {HidePassword(connectionString)}");
+                LogMessage($"Testing connection '{connectionName}'...");
 
                 using (var connection = new SqlConnection(connectionString))
                 {
@@ -80,6 +86,7 @@ namespace Omnitech.Prezzi.Infrastructure
                     }
                 }
                 LogMessage($"Connection test successful for '{connectionName}'");
+                LogMessage($"=== CONNECTION TEST END ===");
                 return true;
             }
             catch (Exception ex)
@@ -89,6 +96,7 @@ namespace Omnitech.Prezzi.Infrastructure
                 {
                     LogMessage($"Inner exception for '{connectionName}': {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
                 }
+                LogMessage($"=== CONNECTION TEST END (FAILED) ===");
                 return false;
             }
         }
