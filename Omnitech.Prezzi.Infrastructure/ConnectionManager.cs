@@ -65,12 +65,18 @@ namespace Omnitech.Prezzi.Infrastructure
             try
             {
                 var connectionString = GetConnectionString(connectionName);
+                LogMessage($"Testing connection '{connectionName}' with: {HidePassword(connectionString)}");
+
                 using (var connection = new SqlConnection(connectionString))
                 {
+                    LogMessage($"Opening connection to '{connectionName}'...");
                     connection.Open();
+                    LogMessage($"Connection opened successfully for '{connectionName}'");
+
                     using (var command = new SqlCommand("SELECT 1", connection))
                     {
-                        command.ExecuteScalar();
+                        var result = command.ExecuteScalar();
+                        LogMessage($"Test query executed successfully for '{connectionName}', result: {result}");
                     }
                 }
                 LogMessage($"Connection test successful for '{connectionName}'");
@@ -78,9 +84,21 @@ namespace Omnitech.Prezzi.Infrastructure
             }
             catch (Exception ex)
             {
-                LogMessage($"Connection test failed for '{connectionName}': {ex.Message}");
+                LogMessage($"Connection test failed for '{connectionName}': {ex.GetType().Name}: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    LogMessage($"Inner exception for '{connectionName}': {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+                }
                 return false;
             }
+        }
+
+        private static string HidePassword(string connectionString)
+        {
+            if (string.IsNullOrEmpty(connectionString)) return "";
+            return connectionString.Contains("Password=") ?
+                connectionString.Substring(0, connectionString.IndexOf("Password=")) + "Password=***" :
+                connectionString;
         }
 
         public static void AddCustomConnection(string name, string connectionString)
