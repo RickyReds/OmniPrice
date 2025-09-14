@@ -764,6 +764,231 @@ namespace WebApi.Misc.Controllers
             }
         }
 
+        /// <summary>
+        /// Get all available connections
+        /// </summary>
+        [HttpGet]
+        [Route("connections")]
+        public IHttpActionResult GetConnections()
+        {
+            try
+            {
+                var connections = new List<object>();
+                foreach (var conn in ConnectionManager.AvailableConnections)
+                {
+                    var info = ConnectionManager.GetConnectionInfo(conn.Key);
+                    connections.Add(new
+                    {
+                        name = info.Name,
+                        dataSource = info.DataSource,
+                        initialCatalog = info.InitialCatalog,
+                        integratedSecurity = info.IntegratedSecurity,
+                        userID = info.UserID,
+                        isActive = info.IsActive,
+                        connectionString = HidePassword(conn.Value)
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    currentConnection = ConnectionManager.CurrentConnectionName,
+                    connections = connections,
+                    timestamp = DateTime.Now
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    error = ex.Message,
+                    timestamp = DateTime.Now
+                });
+            }
+        }
+
+        /// <summary>
+        /// Switch to a different connection
+        /// </summary>
+        [HttpPost]
+        [Route("connections/switch")]
+        public IHttpActionResult SwitchConnection([FromBody] dynamic request)
+        {
+            try
+            {
+                string connectionName = request?.connectionName?.ToString();
+                if (string.IsNullOrEmpty(connectionName))
+                {
+                    return BadRequest("Connection name is required");
+                }
+
+                bool success = ConnectionManager.SetCurrentConnection(connectionName);
+                if (success)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        previousConnection = _connectionString != null ? "previous" : null,
+                        currentConnection = connectionName,
+                        message = $"Switched to connection: {connectionName}",
+                        timestamp = DateTime.Now
+                    });
+                }
+                else
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        error = $"Connection '{connectionName}' not found",
+                        timestamp = DateTime.Now
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    error = ex.Message,
+                    timestamp = DateTime.Now
+                });
+            }
+        }
+
+        /// <summary>
+        /// Test a specific connection
+        /// </summary>
+        [HttpPost]
+        [Route("connections/test")]
+        public IHttpActionResult TestConnection([FromBody] dynamic request)
+        {
+            try
+            {
+                string connectionName = request?.connectionName?.ToString();
+                if (string.IsNullOrEmpty(connectionName))
+                {
+                    return BadRequest("Connection name is required");
+                }
+
+                var startTime = DateTime.Now;
+                bool testResult = ConnectionManager.TestConnection(connectionName);
+                var endTime = DateTime.Now;
+                var duration = (endTime - startTime).TotalMilliseconds;
+
+                var connectionInfo = ConnectionManager.GetConnectionInfo(connectionName);
+
+                return Ok(new
+                {
+                    success = testResult,
+                    connectionName = connectionName,
+                    dataSource = connectionInfo.DataSource,
+                    initialCatalog = connectionInfo.InitialCatalog,
+                    testDuration = $"{duration:F0}ms",
+                    message = testResult ? "Connection test successful" : "Connection test failed",
+                    timestamp = DateTime.Now
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    error = ex.Message,
+                    timestamp = DateTime.Now
+                });
+            }
+        }
+
+        /// <summary>
+        /// Add a custom connection
+        /// </summary>
+        [HttpPost]
+        [Route("connections/add")]
+        public IHttpActionResult AddConnection([FromBody] dynamic request)
+        {
+            try
+            {
+                string name = request?.name?.ToString();
+                string connectionString = request?.connectionString?.ToString();
+
+                if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(connectionString))
+                {
+                    return BadRequest("Name and connection string are required");
+                }
+
+                // Test the connection first
+                try
+                {
+                    using (var connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        using (var command = new SqlCommand("SELECT 1", connection))
+                        {
+                            command.ExecuteScalar();
+                        }
+                    }
+                }
+                catch (Exception testEx)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        error = $"Connection test failed: {testEx.Message}",
+                        timestamp = DateTime.Now
+                    });
+                }
+
+                ConnectionManager.AddCustomConnection(name, connectionString);
+
+                return Ok(new
+                {
+                    success = true,
+                    connectionName = name,
+                    message = $"Connection '{name}' added successfully",
+                    timestamp = DateTime.Now
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    error = ex.Message,
+                    timestamp = DateTime.Now
+                });
+            }
+        }
+
+        /// <summary>
+        /// Remove a custom connection
+        /// </summary>
+        [HttpDelete]
+        [Route("connections/{name}")]
+        public IHttpActionResult RemoveConnection(string name)
+        {
+            try
+            {
+                bool success = ConnectionManager.RemoveConnection(name);
+
+                return Ok(new
+                {
+                    success = success,
+                    message = success ? $"Connection '{name}' removed" : $"Connection '{name}' not found or cannot be removed",
+                    timestamp = DateTime.Now
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    error = ex.Message,
+                    timestamp = DateTime.Now
+                });
+            }
+        }
+
         private string HidePassword(string connectionString)
         {
             if (string.IsNullOrEmpty(connectionString)) return "";

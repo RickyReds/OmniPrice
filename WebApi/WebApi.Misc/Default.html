@@ -469,6 +469,73 @@
                 </div>
             </div>
 
+            <!-- Connection Management -->
+            <div class="stats-table" id="connectionManagerSection">
+                <div class="table-header collapsible-header" onclick="toggleCollapse('connectionManagerSection')">
+                    <span>🔌 Gestione Connessioni Database</span>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="table-content collapsible-content">
+                    <!-- Current Connection Display -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; padding: 15px; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px;">
+                        <div>
+                            <h4 style="margin: 0 0 10px 0; color: #0c4a6e;">🔗 Connessione Attiva</h4>
+                            <div id="currentConnectionInfo">
+                                <div class="stat-row"><span>Nome:</span><span id="currentConnName">-</span></div>
+                                <div class="stat-row"><span>Server:</span><span id="currentConnServer">-</span></div>
+                                <div class="stat-row"><span>Database:</span><span id="currentConnDB">-</span></div>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 style="margin: 0 0 10px 0; color: #0c4a6e;">⚡ Cambio Rapido</h4>
+                            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                                <button class="btn" onclick="switchToConnection('local')" id="btnSwitchLocal">
+                                    🏠 Local
+                                </button>
+                                <button class="btn" onclick="switchToConnection('dual')" id="btnSwitchDual">
+                                    🌐 Dual
+                                </button>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn btn-success" onclick="loadConnections()" style="font-size: 12px;">
+                                    🔄 Aggiorna
+                                </button>
+                                <span class="status-indicator" id="connectionSwitch-status">
+                                    <span class="status-icon idle">-</span>
+                                    <span>Caricamento...</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Available Connections -->
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 15px 0; color: #374151;">📋 Connessioni Disponibili</h4>
+                        <div id="availableConnections" style="display: grid; gap: 10px;">
+                            <!-- Connections will be loaded dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Add Custom Connection -->
+                    <div style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                        <h4 style="margin: 0 0 15px 0; color: #374151;">➕ Aggiungi Connessione Personalizzata</h4>
+                        <div style="display: grid; grid-template-columns: 200px 1fr 150px; gap: 10px; align-items: center; margin-bottom: 15px;">
+                            <input type="text" id="customConnName" placeholder="Nome connessione" style="padding: 8px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                            <input type="text" id="customConnString" placeholder="Connection string completa" style="padding: 8px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                            <button class="btn btn-success" onclick="addCustomConnection()">
+                                ➕ Aggiungi
+                            </button>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <span class="status-indicator" id="customConnection-status">
+                                <span class="status-icon idle">-</span>
+                                <span>Pronto per aggiungere</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Query Manager -->
             <div class="stats-table" id="queryManagerSection">
                 <div class="table-header collapsible-header" onclick="toggleCollapse('queryManagerSection')">
@@ -1271,6 +1338,209 @@
             showToast('📝 Query di esempio inserita', 'success');
         }
 
+        // Connection Management Functions
+        function loadConnections() {
+            updateStatusIndicator('connectionSwitch-status', 'running', 'Caricamento connessioni...');
+
+            fetch('http://localhost:54340/api/health/connections')
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data.success) {
+                        displayConnections(data.connections, data.currentConnection);
+                        updateStatusIndicator('connectionSwitch-status', 'success', 'Connessioni caricate');
+                        showToast('🔌 Connessioni caricate con successo', 'success');
+                    } else {
+                        updateStatusIndicator('connectionSwitch-status', 'error', 'Errore caricamento');
+                        showToast('❌ Errore caricamento connessioni: ' + data.error, 'error');
+                    }
+                })
+                .catch(function(error) {
+                    updateStatusIndicator('connectionSwitch-status', 'error', 'Errore connessione');
+                    showToast('❌ Errore: ' + error.message, 'error');
+                });
+        }
+
+        function displayConnections(connections, currentConnection) {
+            // Update current connection display
+            updateElement('currentConnName', currentConnection || 'N/A');
+
+            var currentConn = connections.find(conn => conn.isActive);
+            if (currentConn) {
+                updateElement('currentConnServer', currentConn.dataSource);
+                updateElement('currentConnDB', currentConn.initialCatalog);
+            }
+
+            // Update quick switch buttons
+            var localBtn = document.getElementById('btnSwitchLocal');
+            var dualBtn = document.getElementById('btnSwitchDual');
+
+            localBtn.className = 'btn' + (currentConnection === 'local' ? ' btn-success' : '');
+            dualBtn.className = 'btn' + (currentConnection === 'dual' ? ' btn-success' : '');
+
+            // Display all available connections
+            var container = document.getElementById('availableConnections');
+            var html = '';
+
+            connections.forEach(function(conn) {
+                var isActive = conn.isActive ? ' (ATTIVA)' : '';
+                var activeClass = conn.isActive ? 'style="background: #ecfdf5; border: 1px solid #10b981;"' : '';
+
+                html += '<div ' + activeClass + ' style="padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; display: grid; grid-template-columns: 1fr 1fr 200px; gap: 10px; align-items: center;">';
+                html += '<div>';
+                html += '<strong>' + conn.name + isActive + '</strong><br>';
+                html += '<small style="color: #666;">' + conn.dataSource + ' → ' + conn.initialCatalog + '</small>';
+                html += '</div>';
+                html += '<div style="font-family: monospace; font-size: 11px; color: #888;">';
+                html += conn.connectionString.substring(0, 80) + (conn.connectionString.length > 80 ? '...' : '');
+                html += '</div>';
+                html += '<div style="display: flex; gap: 5px;">';
+
+                if (!conn.isActive) {
+                    html += '<button class="btn" onclick="switchToConnection(\'' + conn.name + '\')" style="font-size: 12px;">🔄 Usa</button>';
+                }
+
+                html += '<button class="btn" onclick="testConnection(\'' + conn.name + '\')" style="font-size: 12px;">🧪 Test</button>';
+
+                if (conn.name !== 'local' && conn.name !== 'dual') {
+                    html += '<button class="btn btn-danger" onclick="removeConnection(\'' + conn.name + '\')" style="font-size: 12px;">🗑️</button>';
+                }
+
+                html += '</div>';
+                html += '</div>';
+            });
+
+            container.innerHTML = html;
+        }
+
+        function switchToConnection(connectionName) {
+            updateStatusIndicator('connectionSwitch-status', 'running', 'Cambio connessione...');
+
+            fetch('http://localhost:54340/api/health/connections/switch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    connectionName: connectionName
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    updateStatusIndicator('connectionSwitch-status', 'success', 'Connessione cambiata');
+                    showToast('🔌 Connessione cambiata a: ' + connectionName, 'success');
+                    // Refresh connections display
+                    setTimeout(function() {
+                        loadConnections();
+                    }, 500);
+                } else {
+                    updateStatusIndicator('connectionSwitch-status', 'error', 'Errore cambio');
+                    showToast('❌ Errore cambio connessione: ' + data.error, 'error');
+                }
+            })
+            .catch(function(error) {
+                updateStatusIndicator('connectionSwitch-status', 'error', 'Errore');
+                showToast('❌ Errore: ' + error.message, 'error');
+            });
+        }
+
+        function testConnection(connectionName) {
+            fetch('http://localhost:54340/api/health/connections/test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    connectionName: connectionName
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    showToast('✅ Test connessione ' + connectionName + ' riuscito (' + data.testDuration + ')', 'success');
+                } else {
+                    showToast('❌ Test connessione ' + connectionName + ' fallito: ' + data.error, 'error');
+                }
+            })
+            .catch(function(error) {
+                showToast('❌ Errore test connessione: ' + error.message, 'error');
+            });
+        }
+
+        function addCustomConnection() {
+            var name = document.getElementById('customConnName').value;
+            var connectionString = document.getElementById('customConnString').value;
+
+            if (!name || !connectionString) {
+                showToast('❌ Nome e connection string sono obbligatori', 'error');
+                return;
+            }
+
+            updateStatusIndicator('customConnection-status', 'running', 'Aggiunta connessione...');
+
+            fetch('http://localhost:54340/api/health/connections/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    connectionString: connectionString
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    updateStatusIndicator('customConnection-status', 'success', 'Connessione aggiunta');
+                    showToast('✅ Connessione "' + name + '" aggiunta con successo', 'success');
+                    // Clear form
+                    document.getElementById('customConnName').value = '';
+                    document.getElementById('customConnString').value = '';
+                    // Refresh connections
+                    loadConnections();
+                } else {
+                    updateStatusIndicator('customConnection-status', 'error', 'Errore aggiunta');
+                    showToast('❌ Errore aggiunta connessione: ' + data.error, 'error');
+                }
+            })
+            .catch(function(error) {
+                updateStatusIndicator('customConnection-status', 'error', 'Errore');
+                showToast('❌ Errore: ' + error.message, 'error');
+            });
+        }
+
+        function removeConnection(connectionName) {
+            if (!confirm('Sei sicuro di voler rimuovere la connessione "' + connectionName + '"?')) {
+                return;
+            }
+
+            fetch('http://localhost:54340/api/health/connections/' + encodeURIComponent(connectionName), {
+                method: 'DELETE'
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    showToast('🗑️ Connessione "' + connectionName + '" rimossa', 'success');
+                    loadConnections();
+                } else {
+                    showToast('❌ Errore rimozione: ' + data.message, 'error');
+                }
+            })
+            .catch(function(error) {
+                showToast('❌ Errore: ' + error.message, 'error');
+            });
+        }
+
         function toggleCollapse(sectionId) {
             var section = document.getElementById(sectionId);
             var header = section.previousElementSibling;
@@ -1297,6 +1567,7 @@
                 testSqlConnection();
                 testApiHealth();
                 loadStatistics();
+                loadConnections();
             }, 500);
         });
     </script>

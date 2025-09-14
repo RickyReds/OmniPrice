@@ -28,12 +28,21 @@ namespace Omnitech.Prezzi.Infrastructure
 
         public QueryManager()
         {
-            _connectionString = WebConfigurationManager.AppSettings["ConnectionStringAvanzamentoProduzione"] 
-                ?? WebConfigurationManager.AppSettings["ConnectionStringPrezzi"]?.Replace("Initial Catalog=prezzi", "Initial Catalog=AvanzamentoProduzione")
-                ?? throw new InvalidOperationException("Connection string not configured");
-            
+            // Use ConnectionManager instead of direct config access
+            _connectionString = ConnectionManager.CurrentConnectionString;
+
             _args = new List<string>();
             _replace = new Dictionary<string, string>();
+        }
+
+        // Property to get current connection info
+        public string CurrentConnection => ConnectionManager.CurrentConnectionName;
+
+        // Method to refresh connection string from ConnectionManager
+        public void RefreshConnection()
+        {
+            _connectionString = ConnectionManager.CurrentConnectionString;
+            SafeLog($"Connection refreshed to: {ConnectionManager.CurrentConnectionName}");
         }
 
         public int IdQuery
