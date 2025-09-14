@@ -62,6 +62,7 @@ This is a .NET Framework 4.7.2 Web API solution for price calculation services. 
   - CustomerRepository - Accesso dati clienti
   - OrderRepository - Accesso dati ordini
   - DiscountRepository - Accesso dati sconti
+  - QueryManager - Sistema per esecuzione query parametriche con timeout configurabili
   - Usa Dapper per query SQL Server
 
 ### Key API Endpoints
@@ -74,6 +75,13 @@ This is a .NET Framework 4.7.2 Web API solution for price calculation services. 
 - `POST api/v2/price/calculate` - Calcola prezzo con dati Order completi
 - `GET api/v2/price/details/{barcode}` - Ottiene dettagli ordine senza ricalcolare
 - `POST api/v2/price/calculate/batch` - Calcola prezzi in batch per più barcode
+
+#### Health & Management Endpoints
+- `GET api/health/sql` - Test SQL Server connection
+- `GET api/health/api` - Test Web API health
+- `GET api/health/statistics` - Get API and database statistics
+- `GET api/health/query/{queryId}/template` - Get query template with parameters
+- `POST api/health/query` - Execute parameterized queries
 
 ### Connection String Configuration
 The application uses connection strings configured in code:
@@ -136,6 +144,32 @@ The application uses connection strings configured in code:
 3. Move connection strings to Web.config
 4. Create database schema for price calculations
 
+## Dashboard Interface
+
+The project includes a comprehensive web dashboard accessible at `http://localhost:54340/` with the following features:
+
+### Dashboard Features (v.4)
+- **Collapsible Sections** - All dashboard sections can be expanded/collapsed for better organization
+- **Real-time Status Monitoring** - Live SQL Server and Web API health status
+- **Query Manager (2-Step System)**:
+  - Step 1: Load query template and identify required parameters ({0}, {1}, etc.)
+  - Step 2: Fill parameters dynamically and execute with configurable timeout
+  - Special handling for Query 516 with 180-second timeout
+- **Custom SQL Query Execution** - Execute arbitrary SQL queries with real-time timer
+- **Statistics Tracking** - API calls, database queries, success rates, and execution times
+- **Health Endpoint Testing** - Test all API endpoints with status indicators
+- **Request Generation** - Generate test requests for statistics
+
+### QueryManager System
+The `QueryManager` class provides:
+- **Parameter Replacement**: Two-phase system mimicking PsR's cQueryManager
+  - Phase 1: Indexed parameters using `string.Format` ({0}, {1}, etc.)
+  - Phase 2: Dictionary-based replacements for advanced substitutions
+- **Configurable Timeouts**: Default 90s, Query 516 gets 180s automatically
+- **NOLOCK Hints**: Automatically added to Query 516 to prevent blocking
+- **Retry Logic**: 3 attempts with exponential backoff for timeout errors
+- **Thread-safe Logging**: All operations logged to `C:\WebApiLog\QueryManagerDebug.log`
+
 ## Important Notes
 - The solution uses IIS Express for local development
 - Dependencies managed via NuGet packages (including Dapper for data access)
@@ -143,3 +177,5 @@ The application uses connection strings configured in code:
 - Web API configured with attribute routing
 - Current implementation contains hardcoded test connection string that needs to be properly configured
 - Database layer uses Dapper ORM for data access
+- Dashboard provides comprehensive monitoring and testing capabilities
+- QueryManager system extracted from PsR maintains full compatibility

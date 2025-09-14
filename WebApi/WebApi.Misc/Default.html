@@ -239,12 +239,49 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+
+        /* Collapsible sections */
+        .collapsible-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            transition: background-color 0.2s ease;
+        }
+
+        .collapsible-header:hover {
+            background: linear-gradient(135deg, #374151, #4b5563);
+        }
+
+        .collapse-icon {
+            transition: transform 0.3s ease;
+            font-size: 14px;
+        }
+
+        .collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            transition: all 0.3s ease;
+            opacity: 1;
+            max-height: 2000px;
+            overflow: hidden;
+        }
+
+        .collapsed .collapsible-content {
+            opacity: 0;
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔧 OmniPrice Web API - v.17</h1>
+            <h1>🔧 OmniPrice Web API - v.20</h1>
             <p>Sistema di calcolo prezzi estratto da PsR - Dashboard di controllo</p>
         </div>
 
@@ -309,11 +346,12 @@
             </div>
 
             <!-- Detailed Statistics -->
-            <div class="stats-table">
-                <div class="table-header">
-                    📈 Statistiche Dettagliate
+            <div class="stats-table" id="detailedStatsSection">
+                <div class="table-header collapsible-header" onclick="toggleCollapse('detailedStatsSection')">
+                    <span>📈 Statistiche Dettagliate</span>
+                    <span class="collapse-icon">▼</span>
                 </div>
-                <div class="table-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="table-content collapsible-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div class="stat-row">
                         <span>📡 Chiamate API (oggi)</span>
                         <span id="totalRequests">-</span>
@@ -348,11 +386,12 @@
             <!-- Combined API Tests -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 20px;">
                 <!-- Health Endpoints -->
-                <div class="stats-table">
-                    <div class="table-header">
-                        🚀 Test Health Endpoints
+                <div class="stats-table" id="healthEndpointsSection">
+                    <div class="table-header collapsible-header" onclick="toggleCollapse('healthEndpointsSection')">
+                        <span>🚀 Test Health Endpoints</span>
+                        <span class="collapse-icon">▼</span>
                     </div>
-                    <div class="table-content">
+                    <div class="table-content collapsible-content">
                         <div class="stat-row">
                             <span>SQL Server
                                 <span class="status-indicator" id="sqlEndpoint-status">
@@ -384,11 +423,12 @@
                 </div>
 
                 <!-- Generate Requests -->
-                <div class="stats-table">
-                    <div class="table-header">
-                        📈 Genera Richieste (per statistiche)
+                <div class="stats-table" id="generateRequestsSection">
+                    <div class="table-header collapsible-header" onclick="toggleCollapse('generateRequestsSection')">
+                        <span>📈 Genera Richieste (per statistiche)</span>
+                        <span class="collapse-icon">▼</span>
                     </div>
-                    <div class="table-content">
+                    <div class="table-content collapsible-content">
                         <div class="stat-row">
                             <span>Price Calculate
                                 <span class="status-indicator" id="priceCalc-status">
@@ -429,16 +469,66 @@
                 </div>
             </div>
 
-            <!-- Custom SQL Query -->
-            <div class="stats-table">
-                <div class="table-header">
-                    🔍 Esegui Query SQL Personalizzata
+            <!-- Query Manager -->
+            <div class="stats-table" id="queryManagerSection">
+                <div class="table-header collapsible-header" onclick="toggleCollapse('queryManagerSection')">
+                    <span>🔢 Query Manager - Esegui Query per ID (2 Step)</span>
+                    <span class="collapse-icon">▼</span>
                 </div>
-                <div class="table-content">
+                <div class="table-content collapsible-content">
+                    <!-- Step 1: Query ID Input -->
+                    <div style="display: grid; grid-template-columns: 120px 200px 1fr; gap: 10px; align-items: center; margin-bottom: 15px;">
+                        <label for="queryId">Query ID:</label>
+                        <input type="number" id="queryId" value="516" min="1" style="padding: 8px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button class="btn" onclick="loadQueryTemplate()">📋 Step 1: Carica Template</button>
+                            <span class="status-indicator" id="queryTemplate-status">
+                                <span class="status-icon idle">-</span>
+                                <span>Nessun template caricato</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Parameters (hidden initially) -->
+                    <div id="queryParametersSection" style="display: none; margin-bottom: 15px; padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                        <h4 style="margin: 0 0 10px 0; color: #374151;">📝 Step 2: Compila Parametri</h4>
+                        <div id="queryParametersContainer"></div>
+                        <div style="margin-top: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-success" onclick="executeQueryWithParams()">🚀 Esegui Query</button>
+                            <button class="btn" onclick="clearQueryManagerResults()">🗑️ Pulisci Risultati</button>
+                            <span class="status-indicator" id="queryManager-status">
+                                <span class="status-icon idle">-</span>
+                                <span>Mai eseguita</span>
+                            </span>
+                        </div>
+                        <div id="queryManagerTimer" style="margin-top: 10px; font-size: 14px; color: #666; font-weight: bold; min-height: 20px;"></div>
+                    </div>
+
+                    <!-- Query Preview -->
+                    <div id="queryPreviewSection" style="display: none; margin-bottom: 15px;">
+                        <strong>🔍 Query Template:</strong>
+                        <pre id="queryPreview" style="background: #f3f4f6; padding: 10px; border-radius: 6px; font-size: 11px; max-height: 150px; overflow-y: auto; white-space: pre-wrap;"></pre>
+                    </div>
+
+                    <!-- Results -->
+                    <div id="queryManagerResults" style="max-height: 400px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; background: #f9fafb; display: none;">
+                        <strong>Risultati Query Manager:</strong>
+                        <div id="queryManagerResultsContent"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom SQL Query -->
+            <div class="stats-table" id="customQuerySection">
+                <div class="table-header collapsible-header" onclick="toggleCollapse('customQuerySection')">
+                    <span>🔍 Esegui Query SQL Personalizzata</span>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="table-content collapsible-content">
                     <div style="margin-bottom: 15px;">
                         <textarea id="customQuery" placeholder="INSERT INTO... UPDATE... SELECT * FROM..." style="width: 100%; height: 100px; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 14px; resize: vertical;">SELECT TOP 5 * FROM dev.query WITH (NOLOCK)</textarea>
                     </div>
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center; flex-wrap: wrap;">
                         <button class="btn btn-success" onclick="executeCustomQuery()">🚀 Esegui Query</button>
                         <button class="btn" onclick="clearQueryResults()">🗑️ Pulisci Risultati</button>
                         <button class="btn" onclick="insertSampleQueries()">📝 Query di Esempio</button>
@@ -447,6 +537,7 @@
                             <span>Mai eseguita</span>
                         </span>
                     </div>
+                    <div id="customQueryTimer" style="margin-bottom: 15px; font-size: 14px; color: #666; font-weight: bold; min-height: 20px;"></div>
                     <div id="queryResults" style="max-height: 400px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; background: #f9fafb; display: none;">
                         <strong>Risultati:</strong>
                         <div id="queryResultsContent"></div>
@@ -468,6 +559,47 @@
             setTimeout(function() {
                 toast.className = 'toast';
             }, 3000);
+        }
+
+        // Timer utilities
+        var activeTimers = {};
+
+        function startTimer(timerId, displayElementId) {
+            var startTime = Date.now();
+            activeTimers[timerId] = {
+                startTime: startTime,
+                intervalId: setInterval(function() {
+                    var elapsed = (Date.now() - startTime) / 1000;
+                    var displayElement = document.getElementById(displayElementId);
+                    if (displayElement) {
+                        displayElement.textContent = 'Esecuzione in corso: ' + elapsed.toFixed(1) + 's';
+                    }
+                }, 100)
+            };
+        }
+
+        function stopTimer(timerId, displayElementId, finalTime) {
+            if (activeTimers[timerId]) {
+                clearInterval(activeTimers[timerId].intervalId);
+                delete activeTimers[timerId];
+
+                var displayElement = document.getElementById(displayElementId);
+                if (displayElement) {
+                    displayElement.textContent = 'Completato in: ' + finalTime + ' (tempo server)';
+                }
+            }
+        }
+
+        function cancelTimer(timerId, displayElementId, errorMessage) {
+            if (activeTimers[timerId]) {
+                clearInterval(activeTimers[timerId].intervalId);
+                delete activeTimers[timerId];
+
+                var displayElement = document.getElementById(displayElementId);
+                if (displayElement) {
+                    displayElement.textContent = errorMessage || 'Esecuzione interrotta';
+                }
+            }
         }
 
         function updateElement(id, content) {
@@ -805,6 +937,215 @@
             }
         }
 
+        // Query Manager Functions - Two Step Process
+        var queryTemplateData = null; // Store template data globally
+
+        // Step 1: Load Query Template
+        function loadQueryTemplate() {
+            var queryId = document.getElementById('queryId').value.trim();
+
+            if (!queryId) {
+                showToast('❌ Inserisci Query ID', 'error');
+                return;
+            }
+
+            updateStatusIndicator('queryTemplate-status', 'running');
+            showToast('📋 Caricando template Query ' + queryId + '...', 'info');
+
+            fetch('http://localhost:54340/api/health/query/' + queryId + '/template')
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    updateStatusIndicator('queryTemplate-status', 'success');
+                    showToast('✅ Template Query ' + queryId + ' caricato!', 'success');
+                    queryTemplateData = data;
+                    displayQueryTemplate(data);
+                } else {
+                    updateStatusIndicator('queryTemplate-status', 'error');
+                    showToast('❌ Errore caricamento template: ' + (data.error || data.message), 'error');
+                    queryTemplateData = null;
+                    hideQueryParametersSection();
+                }
+            })
+            .catch(function(error) {
+                updateStatusIndicator('queryTemplate-status', 'error');
+                showToast('❌ Errore connessione: ' + error.message, 'error');
+                queryTemplateData = null;
+                hideQueryParametersSection();
+            });
+        }
+
+        function displayQueryTemplate(data) {
+            // Show query preview
+            document.getElementById('queryPreview').textContent = data.rawQuery;
+            document.getElementById('queryPreviewSection').style.display = 'block';
+
+            // Generate parameter inputs
+            var container = document.getElementById('queryParametersContainer');
+            var html = '';
+
+            if (data.parameters && data.parameters.length > 0) {
+                html += '<div style="margin-bottom: 10px;"><strong>Parametri Indicizzati:</strong></div>';
+                data.parameters.forEach(function(param) {
+                    html += '<div style="display: grid; grid-template-columns: 100px 200px 1fr; gap: 10px; align-items: center; margin-bottom: 8px;">';
+                    html += '<label>' + param.placeholder + ':</label>';
+                    html += '<input type="text" id="param_' + param.index + '" value="' + param.defaultValue + '" placeholder="' + param.name + '" style="padding: 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px;">';
+                    html += '<span style="color: #666; font-size: 12px;">' + param.name + '</span>';
+                    html += '</div>';
+                });
+            }
+
+            if (data.dictionaryParameters && data.dictionaryParameters.length > 0) {
+                html += '<div style="margin: 15px 0 10px 0;"><strong>Parametri Named:</strong></div>';
+                data.dictionaryParameters.forEach(function(param) {
+                    html += '<div style="display: grid; grid-template-columns: 100px 200px 1fr; gap: 10px; align-items: center; margin-bottom: 8px;">';
+                    html += '<label>' + param.placeholder + ':</label>';
+                    html += '<input type="text" id="dict_' + param.name + '" value="' + param.defaultValue + '" placeholder="' + param.name + '" style="padding: 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px;">';
+                    html += '<span style="color: #666; font-size: 12px;">' + param.name + '</span>';
+                    html += '</div>';
+                });
+            }
+
+            if (html === '') {
+                html = '<div style="color: #666;">Questa query non richiede parametri.</div>';
+            }
+
+            container.innerHTML = html;
+            document.getElementById('queryParametersSection').style.display = 'block';
+        }
+
+        function hideQueryParametersSection() {
+            document.getElementById('queryParametersSection').style.display = 'none';
+            document.getElementById('queryPreviewSection').style.display = 'none';
+        }
+
+        // Step 2: Execute Query with Parameters
+        function executeQueryWithParams() {
+            if (!queryTemplateData) {
+                showToast('❌ Carica prima il template della query (Step 1)', 'error');
+                return;
+            }
+
+            // Collect parameter values
+            var paramValues = {};
+            var dictValues = {};
+
+            // Collect indexed parameters
+            if (queryTemplateData.parameters) {
+                queryTemplateData.parameters.forEach(function(param) {
+                    var inputElement = document.getElementById('param_' + param.index);
+                    if (inputElement) {
+                        paramValues[param.index] = inputElement.value;
+                    }
+                });
+            }
+
+            // Collect dictionary parameters
+            if (queryTemplateData.dictionaryParameters) {
+                queryTemplateData.dictionaryParameters.forEach(function(param) {
+                    var inputElement = document.getElementById('dict_' + param.name);
+                    if (inputElement) {
+                        dictValues[param.name] = inputElement.value;
+                    }
+                });
+            }
+
+            updateStatusIndicator('queryManager-status', 'running');
+            showToast('🚀 Eseguendo Query ' + queryTemplateData.queryId + ' con parametri...', 'info');
+            startTimer('queryManager', 'queryManagerTimer');
+
+            fetch('http://localhost:54340/api/health/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    queryId: queryTemplateData.queryId,
+                    parameters: paramValues,
+                    dictionaryParameters: dictValues
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    updateStatusIndicator('queryManager-status', 'success');
+                    showToast('✅ Query ' + queryTemplateData.queryId + ' eseguita con successo!', 'success');
+                    stopTimer('queryManager', 'queryManagerTimer', data.duration || 'N/A');
+                    displayQueryManagerResults(data);
+                } else {
+                    updateStatusIndicator('queryManager-status', 'error');
+                    showToast('❌ Errore Query ' + queryTemplateData.queryId + ': ' + (data.error || data.message), 'error');
+                    cancelTimer('queryManager', 'queryManagerTimer', 'Errore durante esecuzione');
+                    displayQueryManagerError(data.error || data.message);
+                }
+            })
+            .catch(function(error) {
+                updateStatusIndicator('queryManager-status', 'error');
+                showToast('❌ Errore connessione: ' + error.message, 'error');
+                cancelTimer('queryManager', 'queryManagerTimer', 'Errore di connessione');
+                displayQueryManagerError('Endpoint non raggiungibile: ' + error.message);
+            });
+        }
+
+        function displayQueryManagerResults(data) {
+            var resultsDiv = document.getElementById('queryManagerResults');
+            var contentDiv = document.getElementById('queryManagerResultsContent');
+
+            resultsDiv.style.display = 'block';
+
+            var html = '<div style="margin: 10px 0; color: #059669; font-weight: bold;">Query ' + data.queryId + ' eseguita con successo!</div>';
+
+            html += '<div style="margin: 5px 0;"><strong>Durata:</strong> ' + data.duration + '</div>';
+            html += '<div style="margin: 5px 0;"><strong>Righe trovate:</strong> ' + data.rowCount + '</div>';
+
+            if (data.data && Object.keys(data.data).length > 0) {
+                html += '<div style="margin: 10px 0;"><strong>Dati restituiti:</strong></div>';
+                html += '<div style="overflow-x: auto; max-width: 100%;">';
+                html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px; min-width: 500px;">';
+
+                html += '<tr style="background: #374151; color: white;">';
+                for (var key in data.data) {
+                    html += '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">' + key + '</th>';
+                }
+                html += '</tr>';
+
+                html += '<tr style="background: #f9fafb;">';
+                for (var key in data.data) {
+                    var value = data.data[key] || '';
+                    if (typeof value === 'string' && value.length > 100) {
+                        value = value.substring(0, 100) + '...';
+                    }
+                    html += '<td style="border: 1px solid #ddd; padding: 8px;">' + value + '</td>';
+                }
+                html += '</tr>';
+                html += '</table>';
+                html += '</div>'; // Close overflow-x container
+            }
+
+            if (data.executedQuery) {
+                html += '<div style="margin: 15px 0;"><strong>Query SQL eseguita:</strong></div>';
+                html += '<pre style="background: #f3f4f6; padding: 10px; border-radius: 6px; font-size: 11px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;">' + data.executedQuery + '</pre>';
+            }
+
+            contentDiv.innerHTML = html;
+        }
+
+        function displayQueryManagerError(error) {
+            var resultsDiv = document.getElementById('queryManagerResults');
+            var contentDiv = document.getElementById('queryManagerResultsContent');
+
+            resultsDiv.style.display = 'block';
+            contentDiv.innerHTML = '<div style="color: #dc2626; font-weight: bold;">Errore:</div><div style="margin: 10px 0; color: #666; font-family: monospace;">' + error + '</div>';
+        }
+
+        function clearQueryManagerResults() {
+            var resultsDiv = document.getElementById('queryManagerResults');
+            resultsDiv.style.display = 'none';
+            showToast('🗑️ Risultati Query Manager puliti', 'success');
+        }
+
         // Custom SQL Query Functions
         function executeCustomQuery() {
             var query = document.getElementById('customQuery').value.trim();
@@ -815,6 +1156,7 @@
 
             updateStatusIndicator('customQuery-status', 'running');
             showToast('🔍 Eseguendo query SQL...', 'info');
+            startTimer('customQuery', 'customQueryTimer');
 
             fetch('http://localhost:54340/api/health/sql/execute', {
                 method: 'POST',
@@ -828,16 +1170,19 @@
                 if (data.success) {
                     updateStatusIndicator('customQuery-status', 'success');
                     showToast('✅ Query eseguita con successo!', 'success');
+                    stopTimer('customQuery', 'customQueryTimer', data.duration || 'N/A');
                     displayQueryResults(data);
                 } else {
                     updateStatusIndicator('customQuery-status', 'error');
                     showToast('❌ Errore SQL: ' + data.error, 'error');
+                    cancelTimer('customQuery', 'customQueryTimer', 'Errore durante esecuzione');
                     displayQueryError(data.error);
                 }
             })
             .catch(function(error) {
                 updateStatusIndicator('customQuery-status', 'error');
                 showToast('❌ Errore connessione: ' + error.message, 'error');
+                cancelTimer('customQuery', 'customQueryTimer', 'Errore di connessione');
                 displayQueryError('Endpoint non raggiungibile: ' + error.message);
             });
         }
@@ -850,13 +1195,19 @@
 
             var html = '<div style="margin: 10px 0; color: #059669; font-weight: bold;">Query eseguita con successo!</div>';
 
+            // Add execution time if available
+            if (data.duration) {
+                html += '<div style="margin: 5px 0; font-weight: bold; color: #374151;"><strong>Tempo di esecuzione:</strong> ' + data.duration + '</div>';
+            }
+
             if (data.rowsAffected !== undefined) {
                 html += '<div style="margin: 5px 0;">Righe interessate: ' + data.rowsAffected + '</div>';
             }
 
             if (data.results && data.results.length > 0) {
                 html += '<div style="margin: 10px 0;"><strong>Risultati (' + data.results.length + ' righe):</strong></div>';
-                html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+                html += '<div style="overflow-x: auto; max-width: 100%;">';
+                html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px; min-width: 500px;">';
 
                 // Headers
                 var firstRow = data.results[0];
@@ -885,6 +1236,7 @@
                 }
 
                 html += '</table>';
+                html += '</div>'; // Close overflow-x container
             } else if (data.message) {
                 html += '<div style="margin: 10px 0; color: #666;">' + data.message + '</div>';
             }
@@ -919,9 +1271,26 @@
             showToast('📝 Query di esempio inserita', 'success');
         }
 
+        function toggleCollapse(sectionId) {
+            var section = document.getElementById(sectionId);
+            var header = section.previousElementSibling;
+
+            if (section.classList.contains('collapsed')) {
+                section.classList.remove('collapsed');
+                if (header && header.querySelector('.collapse-icon')) {
+                    header.querySelector('.collapse-icon').innerHTML = '▼';
+                }
+            } else {
+                section.classList.add('collapsed');
+                if (header && header.querySelector('.collapse-icon')) {
+                    header.querySelector('.collapse-icon').innerHTML = '▶';
+                }
+            }
+        }
+
         // Inizializzazione
         document.addEventListener('DOMContentLoaded', function() {
-            showToast('Dashboard OmniPrice v.3 caricata', 'success');
+            showToast('Dashboard OmniPrice v.4 caricata', 'success');
 
             // Carica stati iniziali
             setTimeout(function() {

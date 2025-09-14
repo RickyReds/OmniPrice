@@ -1,0 +1,195 @@
+{
+  "info": {
+    "name": "WebApiPrezzi v2 - Sistema Core",
+    "description": "Collezione Postman per testare il nuovo sistema di calcolo prezzi basato su Omnitech.Prezzi.Core",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "v1 - Sistema Legacy",
+      "item": [
+        {
+          "name": "Price Evaluate (Legacy)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Barcode\": \"{{barcode}}\",\n  \"Categoria\": \"TOP\",\n  \"Altezza\": 50,\n  \"Lunghezza\": 1200,\n  \"Profondita\": 600,\n  \"Materiale\": \"Deimos\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/price/evaluate/{{customer_no}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "price", "evaluate", "{{customer_no}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "v2 - Sistema Core",
+      "item": [
+        {
+          "name": "Calcola Prezzo per Barcode",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v2/price/calculate/{{barcode}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "price", "calculate", "{{barcode}}"]
+            },
+            "description": "Calcola il prezzo per un articolo usando il barcode. Recupera automaticamente l'ordine dal database."
+          }
+        },
+        {
+          "name": "Calcola Prezzo (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Barcode\": \"TEST123456\",\n  \"CustomerId\": 1,\n  \"Material\": 1,\n  \"Texture\": 0,\n  \"RALCode\": \"9010\",\n  \"Dimensions\": {\n    \"Length\": 1200,\n    \"Depth\": 600,\n    \"Height\": 50\n  },\n  \"Stamp\": {\n    \"StampId\": 1,\n    \"StampCode\": \"ST001\"\n  },\n  \"MainArticleType\": 1,\n  \"ArticleTypes\": [1],\n  \"NumberOfBaths\": 1,\n  \"RobustPackaging\": false,\n  \"IsContract\": false,\n  \"Model\": \"MOD001\",\n  \"OrderDate\": \"2025-01-09\",\n  \"IsEcomalta\": false,\n  \"EcomaltaCost\": 0,\n  \"IsSheetPlusBath\": false,\n  \"DepthChange\": false,\n  \"IsWarehouse\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/price/calculate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "price", "calculate"]
+            },
+            "description": "Calcola il prezzo per un ordine fornito nel body della richiesta."
+          }
+        },
+        {
+          "name": "Dettagli Prezzo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v2/price/details/{{barcode}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "price", "details", "{{barcode}}"]
+            },
+            "description": "Ottiene i dettagli dell'ordine e il prezzo esistente senza ricalcolare."
+          }
+        },
+        {
+          "name": "Calcolo Batch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\"BARCODE001\", \"BARCODE002\", \"BARCODE003\", \"BARCODE004\", \"BARCODE005\"]"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/price/calculate/batch",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "price", "calculate", "batch"]
+            },
+            "description": "Calcola i prezzi per più barcode in una singola richiesta."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test Samples",
+      "item": [
+        {
+          "name": "Test TopVascaIntegrata",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Barcode\": \"TVI001\",\n  \"CustomerId\": 1,\n  \"Material\": 1,\n  \"Dimensions\": {\n    \"Length\": 1200,\n    \"Depth\": 600,\n    \"Height\": 50\n  },\n  \"Stamp\": {\n    \"StampId\": 1,\n    \"StampCode\": \"B001\"\n  },\n  \"MainArticleType\": 1,\n  \"ArticleTypes\": [1],\n  \"OrderDate\": \"2025-01-09\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/price/calculate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "price", "calculate"]
+            }
+          }
+        },
+        {
+          "name": "Test con Maggiorazioni Colore",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Barcode\": \"COLOR001\",\n  \"CustomerId\": 1,\n  \"Material\": 2,\n  \"RALCode\": \"NERO\",\n  \"Dimensions\": {\n    \"Length\": 1500,\n    \"Depth\": 700,\n    \"Height\": 60\n  },\n  \"Stamp\": {\n    \"StampId\": 2,\n    \"StampCode\": \"B002\"\n  },\n  \"MainArticleType\": 8,\n  \"ArticleTypes\": [8],\n  \"OrderDate\": \"2025-01-09\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/price/calculate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "price", "calculate"]
+            }
+          }
+        },
+        {
+          "name": "Test con Scatolatura e Fresata",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Barcode\": \"SCATFRES001\",\n  \"CustomerId\": 1,\n  \"Material\": 1,\n  \"Dimensions\": {\n    \"Length\": 1800,\n    \"Depth\": 900,\n    \"Height\": 100\n  },\n  \"Stamp\": {\n    \"StampId\": 3,\n    \"StampCode\": \"B003\"\n  },\n  \"MainArticleType\": 7,\n  \"ArticleTypes\": [7, 10, 11],\n  \"OrderDate\": \"2025-01-09\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/price/calculate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "price", "calculate"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:54340",
+      "type": "string"
+    },
+    {
+      "key": "barcode",
+      "value": "TEST123456",
+      "type": "string"
+    },
+    {
+      "key": "customer_no",
+      "value": "CUST001",
+      "type": "string"
+    }
+  ]
+}

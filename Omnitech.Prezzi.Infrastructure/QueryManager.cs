@@ -19,6 +19,7 @@ namespace Omnitech.Prezzi.Infrastructure
         private List<string> _args;
         private Dictionary<string, string> _replace;
         private string _executedQuery;
+        private int _commandTimeout = 90; // Default timeout
 
         // Thread-safe logging
         private static readonly object _logLock = new object();
@@ -38,7 +39,21 @@ namespace Omnitech.Prezzi.Infrastructure
         public int IdQuery
         {
             get { return _idQuery; }
-            set { _idQuery = value; }
+            set
+            {
+                _idQuery = value;
+                // Set timeout specifico per Query 516
+                if (value == 516)
+                {
+                    _commandTimeout = 180; // 3 minuti per Query 516
+                }
+            }
+        }
+
+        public int CommandTimeout
+        {
+            get { return _commandTimeout; }
+            set { _commandTimeout = value; }
         }
 
         public DataTable DT
@@ -104,11 +119,14 @@ namespace Omnitech.Prezzi.Infrastructure
                 // Thread-safe logging
                 SafeLog($"GetQuery started for barcode: {barcode}, idQuery: {_idQuery}");
 
-                // Setup Args collection like PsR
-                _args.Clear();
-                if (!string.IsNullOrEmpty(barcode))
+                // Setup Args collection like PsR (only if barcode provided)
+                if (barcode != null)
                 {
-                    _args.Add(barcode);
+                    _args.Clear();
+                    if (!string.IsNullOrEmpty(barcode))
+                    {
+                        _args.Add(barcode);
+                    }
                 }
 
                 // Get processed query using QueryWithParam property (like PsR)
@@ -150,7 +168,7 @@ namespace Omnitech.Prezzi.Infrastructure
                             
                             using (var command = new SqlCommand(processedQuery, connection))
                             {
-                                command.CommandTimeout = 90; // Increased timeout to 90 seconds
+                                command.CommandTimeout = _commandTimeout;
                                 
                                 // Execute query and fill DataTable
                                 using (var adapter = new SqlDataAdapter(command))
@@ -187,7 +205,7 @@ namespace Omnitech.Prezzi.Infrastructure
             }
         }
 
-        private string GetQueryText(int idQuery)
+        public string GetQueryText(int idQuery)
         {
             try
             {

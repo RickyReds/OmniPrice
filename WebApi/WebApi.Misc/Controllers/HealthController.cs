@@ -7,6 +7,7 @@ using System.Data.SqlClient;
 using System.ServiceProcess;
 using System.Diagnostics;
 using System.Web.Configuration;
+using Omnitech.Prezzi.Infrastructure;
 
 namespace WebApi.Misc.Controllers
 {
@@ -501,6 +502,8 @@ namespace WebApi.Misc.Controllers
                     });
                 }
 
+                var startTime = DateTime.Now;
+
                 using (var connection = new SqlConnection(_connectionString))
                 {
                     connection.Open();
@@ -525,11 +528,16 @@ namespace WebApi.Misc.Controllers
                             }
                         }
 
+                        var endTime = DateTime.Now;
+                        var duration = (endTime - startTime).TotalSeconds;
+
                         return Ok(new
                         {
                             success = true,
                             results = results,
                             rowCount = results.Count,
+                            duration = $"{duration:F2}s",
+                            executionTime = duration,
                             message = results.Count == 0 ? "Nessun risultato trovato" : $"{results.Count} righe restituite",
                             timestamp = DateTime.Now
                         });
@@ -551,6 +559,206 @@ namespace WebApi.Misc.Controllers
                 {
                     success = false,
                     error = $"Errore: {ex.Message}",
+                    timestamp = DateTime.Now
+                });
+            }
+        }
+
+        /// <summary>
+        /// Esegue una query per numero ID specificato
+        /// </summary>
+        [HttpPost]
+        [Route("query")]
+        public IHttpActionResult ExecuteQueryById([FromBody] dynamic request)
+        {
+            try
+            {
+                string queryIdStr = request?.queryId?.ToString();
+                if (string.IsNullOrEmpty(queryIdStr) || !int.TryParse(queryIdStr, out int queryId))
+                {
+                    return BadRequest("Query ID numerico richiesto");
+                }
+
+                var queryManager = new QueryManager();
+                queryManager.IdQuery = queryId;
+
+                var startTime = DateTime.Now;
+                bool success = false;
+
+                // Handle structured parameters (new way)
+                if (request?.parameters != null)
+                {
+                    var parameters = request.parameters;
+
+                    // Populate Args collection manually AFTER setting IdQuery
+                    queryManager.Args.Clear();
+                    for (int i = 0; i < 10; i++)
+                    {
+                        var paramValue = parameters[i.ToString()]?.ToString();
+                        if (!string.IsNullOrEmpty(paramValue))
+                        {
+                            queryManager.Args.Add(paramValue);
+                        }
+                    }
+
+                    // Handle dictionary parameters
+                    if (request?.dictionaryParameters != null)
+                    {
+                        var dictParams = request.dictionaryParameters;
+                        foreach (var prop in dictParams)
+                        {
+                            var key = "{" + prop.Name.ToUpper() + "}";
+                            var value = prop.Value?.ToString();
+                            if (!string.IsNullOrEmpty(value))
+                            {
+                                queryManager.Replace[key] = value;
+                            }
+                        }
+                    }
+
+                    // Execute query without clearing Args (pass null to preserve current Args)
+                    success = queryManager.GetQuery(null);
+                }
+                // Fallback to legacy method
+                else if (request?.barcode != null)
+                {
+                    success = queryManager.GetQuery(request.barcode.ToString());
+                }
+                else
+                {
+                    success = queryManager.GetQuery("");
+                }
+
+                var endTime = DateTime.Now;
+                var duration = (endTime - startTime).TotalSeconds;
+
+                if (success && queryManager.DR != null)
+                {
+                    // Estrae i dati dalla DataRow
+                    var result = new Dictionary<string, object>();
+                    for (int i = 0; i < queryManager.DR.Table.Columns.Count; i++)
+                    {
+                        var columnName = queryManager.DR.Table.Columns[i].ColumnName;
+                        var value = queryManager.DR.IsNull(i) ? null : queryManager.DR[i];
+                        result[columnName] = value?.ToString() ?? "";
+                    }
+
+                    return Ok(new
+                    {
+                        success = true,
+                        queryId = queryId,
+                        duration = $"{duration:F2}s",
+                        executedQuery = queryManager.ExecutedQuery,
+                        rowCount = queryManager.DT?.Rows.Count ?? 0,
+                        data = result,
+                        message = $"Query {queryId} eseguita con successo in {duration:F2} secondi",
+                        timestamp = DateTime.Now
+                    });
+                }
+                else
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        queryId = queryId,
+                        duration = $"{duration:F2}s",
+                        executedQuery = queryManager.ExecutedQuery,
+                        message = $"Query {queryId} eseguita ma nessun risultato trovato",
+                        timestamp = DateTime.Now
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    error = $"Errore Query: {ex.Message}",
+                    timestamp = DateTime.Now
+                });
+            }
+        }
+
+        /// <summary>
+        /// Recupera il template di una query e identifica i parametri richiesti (Step 1)
+        /// </summary>
+        [HttpGet]
+        [Route("query/{queryId}/template")]
+        public IHttpActionResult GetQueryTemplate(int queryId)
+        {
+            try
+            {
+                var queryManager = new QueryManager();
+                queryManager.IdQuery = queryId;
+
+                // Ottiene il testo raw della query
+                string rawQuery = queryManager.GetQueryText(queryId);
+
+                if (string.IsNullOrEmpty(rawQuery))
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        error = $"Query {queryId} non trovata nel database",
+                        timestamp = DateTime.Now
+                    });
+                }
+
+                // Analizza i parametri richiesti dalla query
+                var parameters = new List<object>();
+                var parameterNumbers = new List<int>();
+
+                // Cerca parametri {0}, {1}, {2}, etc.
+                for (int i = 0; i < 10; i++)
+                {
+                    if (rawQuery.Contains("{" + i + "}"))
+                    {
+                        parameterNumbers.Add(i);
+                        parameters.Add(new {
+                            index = i,
+                            placeholder = "{" + i + "}",
+                            name = i == 0 ? "Barcode" : $"Parametro {i}",
+                            required = true,
+                            defaultValue = i == 0 ? "012027" : ""
+                        });
+                    }
+                }
+
+                // Cerca anche parametri con nomi specifici (per dictionary replacements)
+                var dictionaryParams = new List<object>();
+                var commonReplacements = new[] { "{BARCODE}", "{CLIENT}", "{DATE}", "{USER}" };
+
+                foreach (var param in commonReplacements)
+                {
+                    if (rawQuery.Contains(param))
+                    {
+                        dictionaryParams.Add(new {
+                            placeholder = param,
+                            name = param.Replace("{", "").Replace("}", ""),
+                            required = true,
+                            defaultValue = param == "{BARCODE}" ? "012027" : ""
+                        });
+                    }
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    queryId = queryId,
+                    rawQuery = rawQuery,
+                    parameters = parameters,
+                    dictionaryParameters = dictionaryParams,
+                    timeout = queryId == 516 ? 180 : 90,
+                    message = $"Query {queryId} trovata con {parameters.Count} parametri indicizzati e {dictionaryParams.Count} parametri named",
+                    timestamp = DateTime.Now
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    error = $"Errore recupero template Query {queryId}: {ex.Message}",
                     timestamp = DateTime.Now
                 });
             }
