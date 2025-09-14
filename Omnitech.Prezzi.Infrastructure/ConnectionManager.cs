@@ -15,7 +15,7 @@ namespace Omnitech.Prezzi.Infrastructure
         private static readonly Dictionary<string, string> _connections = new Dictionary<string, string>
         {
             { "local", null }, // Will be loaded from config
-            { "dual", "Data Source=192.168.1.190;Initial Catalog=AvanzamentoProduzione;Persist Security Info=True;User ID=rickyreds;Password=Omni!2k25@rReds!;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Application Name=\"SQL Server Management Studio\";Connect Timeout=30" },
+            { "dual", "Data Source=192.168.1.190;Initial Catalog=AvanzamentoProduzione;User ID=rickyreds;Password=Omni!2k25@rReds!;Encrypt=True;TrustServerCertificate=True;Connect Timeout=30" },
         };
 
         private static string _currentConnection = "local";
