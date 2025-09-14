@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniPrice Web API - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .dashboard {
+            padding: 40px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 20px;
+        }
+
+        .status-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #4f46e5;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .status-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .status-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+        }
+
+        .status-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .status-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .status-online { color: #10b981; }
+        .status-offline { color: #ef4444; }
+        .status-warning { color: #f59e0b; }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .stats-table {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        .table-header {
+            background: linear-gradient(135deg, #1f2937, #374151);
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+        }
+
+        .table-content {
+            padding: 25px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4f46e5;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: #666;
+            margin-left: 10px;
+        }
+
+        .status-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        .status-icon.running {
+            background: #f59e0b;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-icon.success {
+            background: #10b981;
+            color: white;
+        }
+
+        .status-icon.error {
+            background: #ef4444;
+            color: white;
+        }
+
+        .status-icon.idle {
+            background: #e5e7eb;
+            color: #9ca3af;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 OmniPrice Web API - v.17</h1>
+            <p>Sistema di calcolo prezzi estratto da PsR - Dashboard di controllo</p>
+        </div>
+
+        <div class="dashboard">
+            <div class="status-grid">
+                <!-- SQL Server Status -->
+                <div class="status-card">
+                    <div class="status-header">
+                        <div class="status-icon">🗄️</div>
+                        <div class="status-title">SQL Server</div>
+                    </div>
+                    <div class="status-value" id="sqlStatus">
+                        <span class="loading"></span> Controllo...
+                    </div>
+                    <div class="controls">
+                        <button class="btn" onclick="testSqlConnection()">
+                            🔍 Test Connessione
+                        </button>
+                        <button class="btn" onclick="refreshSqlStatus()">
+                            🔄 Aggiorna
+                        </button>
+                    </div>
+                </div>
+
+                <!-- API Status -->
+                <div class="status-card">
+                    <div class="status-header">
+                        <div class="status-icon">🚀</div>
+                        <div class="status-title">Web API</div>
+                    </div>
+                    <div class="status-value" id="apiStatus">
+                        <span class="loading"></span> Controllo...
+                    </div>
+                    <div class="controls">
+                        <button class="btn" onclick="testApiHealth()">
+                            🧪 Test API
+                        </button>
+                        <button class="btn" onclick="refreshApiStatus()">
+                            🔄 Aggiorna
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Statistics -->
+                <div class="status-card">
+                    <div class="status-header">
+                        <div class="status-icon">📊</div>
+                        <div class="status-title">Statistiche</div>
+                    </div>
+                    <div class="status-value" id="statsCount">
+                        <span class="loading"></span> Carico...
+                    </div>
+                    <div class="controls">
+                        <button class="btn" onclick="refreshStats()">
+                            🔄 Aggiorna Stats
+                        </button>
+                        <button class="btn" onclick="clearLogs()">
+                            🗑️ Pulisci Log
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Statistics -->
+            <div class="stats-table">
+                <div class="table-header">
+                    📈 Statistiche Dettagliate
+                </div>
+                <div class="table-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="stat-row">
+                        <span>📡 Chiamate API (oggi)</span>
+                        <span id="totalRequests">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>🗃️ Query Database Riuscite</span>
+                        <span id="successfulQueries">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>⏰ Query Database Timeout</span>
+                        <span id="timeoutQueries">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>🔄 Rapporto Query/API</span>
+                        <span id="queryRatio">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>📅 Ultima Richiesta</span>
+                        <span id="lastRequest">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>⚡ Tempo Risposta Medio</span>
+                        <span id="avgResponseTime">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>🕒 Uptime Server</span>
+                        <span id="serverUptime">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Combined API Tests -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 20px;">
+                <!-- Health Endpoints -->
+                <div class="stats-table">
+                    <div class="table-header">
+                        🚀 Test Health Endpoints
+                    </div>
+                    <div class="table-content">
+                        <div class="stat-row">
+                            <span>SQL Server
+                                <span class="status-indicator" id="sqlEndpoint-status">
+                                    <span class="status-icon idle">-</span>
+                                    <span>Mai testato</span>
+                                </span>
+                            </span>
+                            <button class="btn btn-success" onclick="testSqlEndpoint()">Test SQL</button>
+                        </div>
+                        <div class="stat-row">
+                            <span>Web API
+                                <span class="status-indicator" id="apiEndpoint-status">
+                                    <span class="status-icon idle">-</span>
+                                    <span>Mai testato</span>
+                                </span>
+                            </span>
+                            <button class="btn" onclick="testApiEndpoint()">Test API</button>
+                        </div>
+                        <div class="stat-row">
+                            <span>Statistics
+                                <span class="status-indicator" id="statsEndpoint-status">
+                                    <span class="status-icon idle">-</span>
+                                    <span>Mai testato</span>
+                                </span>
+                            </span>
+                            <button class="btn" onclick="testStatsEndpoint()">Test Stats</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generate Requests -->
+                <div class="stats-table">
+                    <div class="table-header">
+                        📈 Genera Richieste (per statistiche)
+                    </div>
+                    <div class="table-content">
+                        <div class="stat-row">
+                            <span>Price Calculate
+                                <span class="status-indicator" id="priceCalc-status">
+                                    <span class="status-icon idle">-</span>
+                                    <span>Mai testato</span>
+                                </span>
+                            </span>
+                            <button class="btn btn-success" onclick="testPriceCalculate()">Test Price</button>
+                        </div>
+                        <div class="stat-row">
+                            <span>Price Details
+                                <span class="status-indicator" id="priceDetails-status">
+                                    <span class="status-icon idle">-</span>
+                                    <span>Mai testato</span>
+                                </span>
+                            </span>
+                            <button class="btn" onclick="testPriceDetails()">Test Details</button>
+                        </div>
+                        <div class="stat-row">
+                            <span>Price Evaluate
+                                <span class="status-indicator" id="priceEval-status">
+                                    <span class="status-icon idle">-</span>
+                                    <span>Mai testato</span>
+                                </span>
+                            </span>
+                            <button class="btn" onclick="testPriceEvaluate()">Test Evaluate</button>
+                        </div>
+                        <div class="stat-row">
+                            <span style="color: #f59e0b;">10× Bulk Test
+                                <span class="status-indicator" id="bulkTest-status">
+                                    <span class="status-icon idle">-</span>
+                                    <span>Mai eseguito</span>
+                                </span>
+                            </span>
+                            <button class="btn" onclick="generateMultipleRequests()" style="background: linear-gradient(135deg, #f59e0b, #d97706);">🔥 Bulk</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom SQL Query -->
+            <div class="stats-table">
+                <div class="table-header">
+                    🔍 Esegui Query SQL Personalizzata
+                </div>
+                <div class="table-content">
+                    <div style="margin-bottom: 15px;">
+                        <textarea id="customQuery" placeholder="INSERT INTO... UPDATE... SELECT * FROM..." style="width: 100%; height: 100px; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 14px; resize: vertical;">SELECT TOP 5 * FROM dev.query WITH (NOLOCK)</textarea>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
+                        <button class="btn btn-success" onclick="executeCustomQuery()">🚀 Esegui Query</button>
+                        <button class="btn" onclick="clearQueryResults()">🗑️ Pulisci Risultati</button>
+                        <button class="btn" onclick="insertSampleQueries()">📝 Query di Esempio</button>
+                        <span class="status-indicator" id="customQuery-status">
+                            <span class="status-icon idle">-</span>
+                            <span>Mai eseguita</span>
+                        </span>
+                    </div>
+                    <div id="queryResults" style="max-height: 400px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; background: #f9fafb; display: none;">
+                        <strong>Risultati:</strong>
+                        <div id="queryResultsContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Funzioni di utilità
+        function showToast(message, type) {
+            var toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show';
+
+            setTimeout(function() {
+                toast.className = 'toast';
+            }, 3000);
+        }
+
+        function updateElement(id, content) {
+            var element = document.getElementById(id);
+            if (element) {
+                element.innerHTML = content;
+            }
+        }
+
+        // Status indicator management
+        function updateStatusIndicator(indicatorId, status, message) {
+            var indicator = document.getElementById(indicatorId);
+            if (!indicator) return;
+
+            var icon = indicator.querySelector('.status-icon');
+            var text = indicator.querySelector('span:last-child');
+
+            var timestamp = new Date().toLocaleTimeString('it-IT', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+
+            // Reset classes
+            icon.className = 'status-icon';
+
+            switch(status) {
+                case 'running':
+                    icon.className += ' running';
+                    icon.textContent = '⟳';
+                    text.textContent = 'In corso...';
+                    break;
+                case 'success':
+                    icon.className += ' success';
+                    icon.textContent = '✓';
+                    text.textContent = timestamp + ' - OK';
+                    break;
+                case 'error':
+                    icon.className += ' error';
+                    icon.textContent = '✗';
+                    text.textContent = timestamp + ' - Errore';
+                    break;
+                default:
+                    icon.className += ' idle';
+                    icon.textContent = '-';
+                    text.textContent = message || 'Mai testato';
+            }
+        }
+
+        // Test SQL Connection
+        function testSqlConnection() {
+            updateElement('sqlStatus', '<span class="loading"></span> Test...');
+
+            fetch('http://localhost:54340/api/health/sql')
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data.status === 'online') {
+                        updateElement('sqlStatus', '<span class="status-online">🟢 Online</span>');
+                        showToast('✅ SQL Server operativo', 'success');
+                    } else {
+                        updateElement('sqlStatus', '<span class="status-offline">🔴 ' + data.message + '</span>');
+                        showToast('❌ SQL Server: ' + data.message, 'error');
+                    }
+                })
+                .catch(function(error) {
+                    updateElement('sqlStatus', '<span class="status-offline">🔴 Errore Connessione</span>');
+                    showToast('❌ Errore: ' + error.message, 'error');
+                });
+        }
+
+        function refreshSqlStatus() {
+            testSqlConnection();
+        }
+
+        // Test API Health
+        function testApiHealth() {
+            updateElement('apiStatus', '<span class="loading"></span> Test...');
+
+            fetch('http://localhost:54340/api/health/api')
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data.status === 'online') {
+                        updateElement('apiStatus', '<span class="status-online">🟢 Online</span>');
+                        showToast('✅ Web API operativa v' + data.version, 'success');
+                    } else {
+                        updateElement('apiStatus', '<span class="status-offline">🔴 ' + data.message + '</span>');
+                        showToast('❌ API: ' + data.message, 'error');
+                    }
+                })
+                .catch(function(error) {
+                    updateElement('apiStatus', '<span class="status-offline">🔴 Errore</span>');
+                    showToast('❌ Errore API: ' + error.message, 'error');
+                });
+        }
+
+        function refreshApiStatus() {
+            testApiHealth();
+        }
+
+        // Load Statistics
+        function loadStatistics() {
+            updateElement('statsCount', '<span class="loading"></span> Carico...');
+
+            fetch('http://localhost:54340/api/health/statistics')
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    console.log('Statistics data:', data);
+
+                    var totalAPI = data.TotalRequests || 0;
+                    var successfulDB = data.SuccessfulQueries || 0;
+                    var timeoutDB = data.TimeoutQueries || 0;
+
+                    updateElement('totalRequests', totalAPI);
+                    updateElement('successfulQueries', successfulDB);
+                    updateElement('timeoutQueries', timeoutDB);
+                    updateElement('lastRequest', data.LastRequest || 'Mai');
+                    updateElement('avgResponseTime', data.AverageResponseTime || '2.3s');
+                    updateElement('serverUptime', data.ServerUptime || 'N/A');
+
+                    // Calcola rapporto Query/API
+                    var queryRatio = totalAPI > 0 ? (successfulDB / totalAPI).toFixed(1) + ':1' : '-';
+                    updateElement('queryRatio', queryRatio);
+
+                    // Mostra statistiche generali
+                    var apiSuccessRate = totalAPI > 0 ? Math.round((totalAPI / totalAPI) * 100) : 0;
+                    var statusMessage = totalAPI === 0 ? 'Nessuna attività oggi' : totalAPI + ' API (' + successfulDB + ' Query DB)';
+
+                    updateElement('statsCount', statusMessage);
+                    showToast('📊 Caricate: ' + totalAPI + ' chiamate API → ' + successfulDB + ' query DB', 'success');
+                })
+                .catch(function(error) {
+                    updateElement('statsCount', '<span class="status-offline">Errore</span>');
+                    showToast('❌ Errore caricamento statistiche: ' + error.message, 'error');
+                });
+        }
+
+        function refreshStats() {
+            loadStatistics();
+        }
+
+        function clearLogs() {
+            if (confirm('Sei sicuro di voler pulire tutti i log?')) {
+                fetch('http://localhost:54340/api/health/clearlogs', { method: 'POST' })
+                    .then(function(response) {
+                        return response.json();
+                    })
+                    .then(function(data) {
+                        if (data.success) {
+                            showToast('✅ Log puliti: ' + data.files.length + ' file', 'success');
+                            loadStatistics();
+                        } else {
+                            showToast('❌ Errore pulizia log', 'error');
+                        }
+                    })
+                    .catch(function(error) {
+                        showToast('❌ Errore: ' + error.message, 'error');
+                    });
+            }
+        }
+
+        // Test Individual Endpoints
+        function testSqlEndpoint() {
+            updateStatusIndicator('sqlEndpoint-status', 'running');
+
+            fetch('http://localhost:54340/api/health/sql')
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    updateStatusIndicator('sqlEndpoint-status', 'success');
+                    showToast('✅ /api/health/sql: ' + data.status, 'success');
+                    console.log('SQL Endpoint:', data);
+                })
+                .catch(function(error) {
+                    updateStatusIndicator('sqlEndpoint-status', 'error');
+                    showToast('❌ SQL Endpoint: ' + error.message, 'error');
+                });
+        }
+
+        function testApiEndpoint() {
+            updateStatusIndicator('apiEndpoint-status', 'running');
+
+            fetch('http://localhost:54340/api/health/api')
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    updateStatusIndicator('apiEndpoint-status', 'success');
+                    showToast('✅ /api/health/api: ' + data.status, 'success');
+                    console.log('API Endpoint:', data);
+                })
+                .catch(function(error) {
+                    updateStatusIndicator('apiEndpoint-status', 'error');
+                    showToast('❌ API Endpoint: ' + error.message, 'error');
+                });
+        }
+
+        function testStatsEndpoint() {
+            updateStatusIndicator('statsEndpoint-status', 'running');
+
+            fetch('http://localhost:54340/api/health/statistics')
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    updateStatusIndicator('statsEndpoint-status', 'success');
+                    showToast('✅ /api/health/statistics: ' + data.TotalRequests + ' richieste', 'success');
+                    console.log('Stats Endpoint:', data);
+                })
+                .catch(function(error) {
+                    updateStatusIndicator('statsEndpoint-status', 'error');
+                    showToast('❌ Stats Endpoint: ' + error.message, 'error');
+                });
+        }
+
+        // Test Price Endpoints to Generate Statistics
+        function testPriceCalculate() {
+            updateStatusIndicator('priceCalc-status', 'running');
+
+            fetch('http://localhost:54340/api/v2/price/calculate/012027')
+                .then(function(response) {
+                    if (response.ok) {
+                        updateStatusIndicator('priceCalc-status', 'success');
+                        showToast('✅ Price Calculate - Success!', 'success');
+                        setTimeout(loadStatistics, 1000);
+                    } else {
+                        updateStatusIndicator('priceCalc-status', 'error');
+                        showToast('⚠️ Price Calculate - Error ' + response.status, 'error');
+                        setTimeout(loadStatistics, 1000);
+                    }
+                })
+                .catch(function(error) {
+                    updateStatusIndicator('priceCalc-status', 'error');
+                    showToast('⚠️ Price Calculate - Timeout', 'error');
+                    setTimeout(loadStatistics, 1000);
+                });
+        }
+
+        function testPriceDetails() {
+            updateStatusIndicator('priceDetails-status', 'running');
+
+            fetch('http://localhost:54340/api/v2/price/details/012027')
+                .then(function(response) {
+                    if (response.ok) {
+                        updateStatusIndicator('priceDetails-status', 'success');
+                        showToast('✅ Price Details - Success!', 'success');
+                        setTimeout(loadStatistics, 1000);
+                    } else {
+                        updateStatusIndicator('priceDetails-status', 'error');
+                        showToast('⚠️ Price Details - Error ' + response.status, 'error');
+                        setTimeout(loadStatistics, 1000);
+                    }
+                })
+                .catch(function(error) {
+                    updateStatusIndicator('priceDetails-status', 'error');
+                    showToast('⚠️ Price Details - Timeout', 'error');
+                    setTimeout(loadStatistics, 1000);
+                });
+        }
+
+        function testPriceEvaluate() {
+            updateStatusIndicator('priceEval-status', 'running');
+
+            var testData = {
+                barcode: "012027",
+                customerId: 123,
+                material: 1,
+                texture: 1
+            };
+
+            fetch('http://localhost:54340/api/v1/price/evaluate/123', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(testData)
+            })
+                .then(function(response) {
+                    if (response.ok) {
+                        updateStatusIndicator('priceEval-status', 'success');
+                        showToast('✅ Price Evaluate - Success!', 'success');
+                        setTimeout(loadStatistics, 1000);
+                    } else {
+                        updateStatusIndicator('priceEval-status', 'error');
+                        showToast('⚠️ Price Evaluate - Error ' + response.status, 'error');
+                        setTimeout(loadStatistics, 1000);
+                    }
+                })
+                .catch(function(error) {
+                    updateStatusIndicator('priceEval-status', 'error');
+                    showToast('⚠️ Price Evaluate - Timeout', 'error');
+                    setTimeout(loadStatistics, 1000);
+                });
+        }
+
+        function generateMultipleRequests() {
+            updateStatusIndicator('bulkTest-status', 'running');
+
+            var endpoints = [
+                'http://localhost:54340/api/v2/price/calculate/012027',
+                'http://localhost:54340/api/v2/price/details/012027',
+                'http://localhost:54340/api/v2/price/calculate/011378',
+                'http://localhost:54340/api/v2/price/details/011378'
+            ];
+
+            var completed = 0;
+            var total = 10;
+            var errors = 0;
+
+            for (var i = 0; i < total; i++) {
+                var endpoint = endpoints[i % endpoints.length];
+
+                setTimeout(function(url) {
+                    fetch(url)
+                        .then(function(response) {
+                            if (!response.ok) errors++;
+                        })
+                        .catch(function(error) {
+                            errors++;
+                        })
+                        .finally(function() {
+                            completed++;
+                            if (completed === total) {
+                                var success = errors === 0;
+                                updateStatusIndicator('bulkTest-status', success ? 'success' : 'error');
+                                showToast('🎉 Bulk Test Completed! ' + (total - errors) + '/' + total + ' success', success ? 'success' : 'error');
+                                setTimeout(loadStatistics, 2000);
+                            }
+                        });
+                }.bind(null, endpoint), i * 200);
+            }
+        }
+
+        // Custom SQL Query Functions
+        function executeCustomQuery() {
+            var query = document.getElementById('customQuery').value.trim();
+            if (!query) {
+                showToast('❌ Inserisci una query SQL', 'error');
+                return;
+            }
+
+            updateStatusIndicator('customQuery-status', 'running');
+            showToast('🔍 Eseguendo query SQL...', 'info');
+
+            fetch('http://localhost:54340/api/health/sql/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: query })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    updateStatusIndicator('customQuery-status', 'success');
+                    showToast('✅ Query eseguita con successo!', 'success');
+                    displayQueryResults(data);
+                } else {
+                    updateStatusIndicator('customQuery-status', 'error');
+                    showToast('❌ Errore SQL: ' + data.error, 'error');
+                    displayQueryError(data.error);
+                }
+            })
+            .catch(function(error) {
+                updateStatusIndicator('customQuery-status', 'error');
+                showToast('❌ Errore connessione: ' + error.message, 'error');
+                displayQueryError('Endpoint non raggiungibile: ' + error.message);
+            });
+        }
+
+        function displayQueryResults(data) {
+            var resultsDiv = document.getElementById('queryResults');
+            var contentDiv = document.getElementById('queryResultsContent');
+
+            resultsDiv.style.display = 'block';
+
+            var html = '<div style="margin: 10px 0; color: #059669; font-weight: bold;">Query eseguita con successo!</div>';
+
+            if (data.rowsAffected !== undefined) {
+                html += '<div style="margin: 5px 0;">Righe interessate: ' + data.rowsAffected + '</div>';
+            }
+
+            if (data.results && data.results.length > 0) {
+                html += '<div style="margin: 10px 0;"><strong>Risultati (' + data.results.length + ' righe):</strong></div>';
+                html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+
+                // Headers
+                var firstRow = data.results[0];
+                html += '<tr style="background: #374151; color: white;">';
+                for (var key in firstRow) {
+                    html += '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">' + key + '</th>';
+                }
+                html += '</tr>';
+
+                // Data rows
+                for (var i = 0; i < Math.min(data.results.length, 50); i++) {
+                    var row = data.results[i];
+                    html += '<tr style="background: ' + (i % 2 === 0 ? '#f9fafb' : '#ffffff') + ';">';
+                    for (var key in firstRow) {
+                        var value = row[key] || '';
+                        if (typeof value === 'string' && value.length > 50) {
+                            value = value.substring(0, 50) + '...';
+                        }
+                        html += '<td style="border: 1px solid #ddd; padding: 8px;">' + value + '</td>';
+                    }
+                    html += '</tr>';
+                }
+
+                if (data.results.length > 50) {
+                    html += '<tr><td colspan="' + Object.keys(firstRow).length + '" style="text-align: center; padding: 10px; color: #666;">... e altre ' + (data.results.length - 50) + ' righe</td></tr>';
+                }
+
+                html += '</table>';
+            } else if (data.message) {
+                html += '<div style="margin: 10px 0; color: #666;">' + data.message + '</div>';
+            }
+
+            contentDiv.innerHTML = html;
+        }
+
+        function displayQueryError(error) {
+            var resultsDiv = document.getElementById('queryResults');
+            var contentDiv = document.getElementById('queryResultsContent');
+
+            resultsDiv.style.display = 'block';
+            contentDiv.innerHTML = '<div style="color: #dc2626; font-weight: bold;">Errore:</div><div style="margin: 10px 0; color: #666; font-family: monospace;">' + error + '</div>';
+        }
+
+        function clearQueryResults() {
+            var resultsDiv = document.getElementById('queryResults');
+            resultsDiv.style.display = 'none';
+            showToast('🗑️ Risultati puliti', 'success');
+        }
+
+        function insertSampleQueries() {
+            var samples = [
+                'SELECT TOP 5 * FROM dev.query WITH (NOLOCK)',
+                'SELECT COUNT(*) as TotalRecords FROM dev.query WITH (NOLOCK)',
+                'SELECT TOP 10 idQry, description FROM dev.query WITH (NOLOCK) WHERE query LIKE \'%SELECT%\'',
+                'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = \'BASE TABLE\''
+            ];
+
+            var randomSample = samples[Math.floor(Math.random() * samples.length)];
+            document.getElementById('customQuery').value = randomSample;
+            showToast('📝 Query di esempio inserita', 'success');
+        }
+
+        // Inizializzazione
+        document.addEventListener('DOMContentLoaded', function() {
+            showToast('Dashboard OmniPrice v.3 caricata', 'success');
+
+            // Carica stati iniziali
+            setTimeout(function() {
+                testSqlConnection();
+                testApiHealth();
+                loadStatistics();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

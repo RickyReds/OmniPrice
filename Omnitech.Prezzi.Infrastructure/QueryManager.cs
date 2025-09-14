@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Web.Configuration;
 using Dapper;
 
@@ -17,6 +19,11 @@ namespace Omnitech.Prezzi.Infrastructure
         private List<string> _args;
         private Dictionary<string, string> _replace;
         private string _executedQuery;
+
+        // Thread-safe logging
+        private static readonly object _logLock = new object();
+        private static readonly string _logPath = @"C:\WebApiLog\QueryManagerDebug.log";
+        private static readonly string _queryOutputPath = @"C:\WebApiLog\query516_our_output.sql";
 
         public QueryManager()
         {
@@ -94,9 +101,8 @@ namespace Omnitech.Prezzi.Infrastructure
         {
             try
             {
-                // Debug: Log start
-                System.IO.File.AppendAllText(@"C:\WebApiLog\QueryManagerDebug.log", 
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] GetQuery started for barcode: {barcode}, idQuery: {_idQuery}\n");
+                // Thread-safe logging
+                SafeLog($"GetQuery started for barcode: {barcode}, idQuery: {_idQuery}");
 
                 // Setup Args collection like PsR
                 _args.Clear();
@@ -104,31 +110,27 @@ namespace Omnitech.Prezzi.Infrastructure
                 {
                     _args.Add(barcode);
                 }
-                
+
                 // Get processed query using QueryWithParam property (like PsR)
                 string processedQuery = QueryWithParam;
-                
-                System.IO.File.AppendAllText(@"C:\WebApiLog\QueryManagerDebug.log", 
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] QueryWithParam returned {processedQuery?.Length ?? 0} characters\n");
-                
+
+                SafeLog($"QueryWithParam returned {processedQuery?.Length ?? 0} characters");
+
                 if (string.IsNullOrEmpty(processedQuery))
                 {
-                    System.IO.File.AppendAllText(@"C:\WebApiLog\QueryManagerDebug.log", 
-                        $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ProcessedQuery is empty, returning false\n");
+                    SafeLog("ProcessedQuery is empty, returning false");
                     return false;
                 }
 
-                // Write processed query to file for comparison with PsR
+                // Write processed query to file for comparison with PsR (thread-safe)
                 try
                 {
-                    System.IO.File.WriteAllText(@"C:\WebApiLog\query516_our_output.sql", processedQuery);
-                    System.IO.File.AppendAllText(@"C:\WebApiLog\QueryManagerDebug.log", 
-                        $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Query written to query516_our_output.sql, length: {processedQuery.Length}\n");
+                    SafeWriteQueryFile(processedQuery);
+                    SafeLog($"Query written to timestamped file, length: {processedQuery.Length}");
                 }
                 catch (Exception debugEx)
                 {
-                    System.IO.File.AppendAllText(@"C:\WebApiLog\QueryManagerDebug.log", 
-                        $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Failed to write query to file: {debugEx.Message}\n");
+                    SafeLog($"Failed to write query to file: {debugEx.Message}");
                 }
 
                 // Store the executed query for API response
@@ -148,7 +150,7 @@ namespace Omnitech.Prezzi.Infrastructure
                             
                             using (var command = new SqlCommand(processedQuery, connection))
                             {
-                                command.CommandTimeout = 15; // Reduced timeout to 15 seconds
+                                command.CommandTimeout = 90; // Increased timeout to 90 seconds
                                 
                                 // Execute query and fill DataTable
                                 using (var adapter = new SqlDataAdapter(command))
@@ -159,8 +161,7 @@ namespace Omnitech.Prezzi.Infrastructure
                                     if (_dt.Rows.Count > 0)
                                     {
                                         _dr = _dt.Rows[0];
-                                        System.IO.File.AppendAllText(@"C:\WebApiLog\QueryManagerDebug.log", 
-                                            $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Query executed successfully on attempt {attempt}, {_dt.Rows.Count} rows returned\n");
+                                        SafeLog($"Query executed successfully on attempt {attempt}, {_dt.Rows.Count} rows returned");
                                         return true;
                                     }
                                 }
@@ -169,10 +170,9 @@ namespace Omnitech.Prezzi.Infrastructure
                     }
                     catch (SqlException ex) when (ex.Number == -2 && attempt < maxRetries) // Timeout error
                     {
-                        System.IO.File.AppendAllText(@"C:\WebApiLog\QueryManagerDebug.log", 
-                            $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Query timeout on attempt {attempt}, retrying in {retryDelayMs}ms...\n");
-                        
-                        System.Threading.Thread.Sleep(retryDelayMs);
+                        SafeLog($"Query timeout on attempt {attempt}, retrying in {retryDelayMs}ms...");
+
+                        Thread.Sleep(retryDelayMs);
                         retryDelayMs *= 2; // Exponential backoff
                         continue;
                     }
@@ -182,8 +182,7 @@ namespace Omnitech.Prezzi.Infrastructure
             }
             catch (Exception ex)
             {
-                System.IO.File.AppendAllText(@"C:\WebApiLog\QueryManagerDebug.log", 
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Error executing query {_idQuery}: {ex.Message}\n");
+                SafeLog($"Error executing query {_idQuery}: {ex.Message}");
                 throw new Exception($"Error executing query {_idQuery}: {ex.Message}", ex);
             }
         }
@@ -244,6 +243,67 @@ namespace Omnitech.Prezzi.Infrastructure
             }
             
             return query;
+        }
+
+        // Thread-safe logging methods
+        private static void SafeLog(string message)
+        {
+            try
+            {
+                lock (_logLock)
+                {
+                    var logMessage = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n";
+
+                    // Ensure directory exists
+                    var logDir = Path.GetDirectoryName(_logPath);
+                    if (!Directory.Exists(logDir))
+                    {
+                        Directory.CreateDirectory(logDir);
+                    }
+
+                    // Use FileStream with FileShare.ReadWrite for thread-safe access
+                    using (var fileStream = new FileStream(_logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                    using (var writer = new StreamWriter(fileStream))
+                    {
+                        writer.Write(logMessage);
+                        writer.Flush();
+                    }
+                }
+            }
+            catch
+            {
+                // Silent fail - logging errors shouldn't break the main flow
+            }
+        }
+
+        private static void SafeWriteQueryFile(string queryContent)
+        {
+            try
+            {
+                lock (_logLock)
+                {
+                    // Ensure directory exists
+                    var queryDir = Path.GetDirectoryName(_queryOutputPath);
+                    if (!Directory.Exists(queryDir))
+                    {
+                        Directory.CreateDirectory(queryDir);
+                    }
+
+                    // Write with timestamp to make it unique per execution
+                    var timestampedPath = _queryOutputPath.Replace(".sql", $"_{DateTime.Now:yyyyMMdd_HHmmss}.sql");
+
+                    using (var fileStream = new FileStream(timestampedPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
+                    using (var writer = new StreamWriter(fileStream))
+                    {
+                        writer.Write(queryContent);
+                        writer.Flush();
+                    }
+                }
+            }
+            catch
+            {
+                // Silent fail - query file writing errors shouldn't break the main flow
+            }
         }
     }
 }

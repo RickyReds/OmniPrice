@@ -51,8 +51,29 @@ This is a .NET Framework 4.7.2 Web API solution for price calculation services. 
 
 - **HI.Libs.Utility** - Utility libraries
 
+- **Omnitech.Prezzi.Core** (NEW) - Core business logic estratto da PsR
+  - Modelli: Order, Customer, Dimensions, Stamp, PriceResult
+  - Enumerazioni: Material, Texture, ArticleType, PriceListType
+  - Service: PriceCalculator con logica di calcolo prezzi
+  - Repository interfaces per accesso dati
+
+- **Omnitech.Prezzi.Infrastructure** (NEW) - Implementazione repository
+  - PriceRepository - Accesso dati prezzi/listini
+  - CustomerRepository - Accesso dati clienti
+  - OrderRepository - Accesso dati ordini
+  - DiscountRepository - Accesso dati sconti
+  - Usa Dapper per query SQL Server
+
 ### Key API Endpoints
+
+#### v1 - Sistema Legacy
 - `POST api/v1/price/evaluate/{CustomerNo}` - Evaluates price for a customer with ConfigItem payload
+
+#### v2 - Sistema Core (Nuovo - Estratto da PsR)
+- `GET api/v2/price/calculate/{barcode}` - Calcola prezzo per barcode (recupera ordine dal DB)
+- `POST api/v2/price/calculate` - Calcola prezzo con dati Order completi
+- `GET api/v2/price/details/{barcode}` - Ottiene dettagli ordine senza ricalcolare
+- `POST api/v2/price/calculate/batch` - Calcola prezzi in batch per più barcode
 
 ### Connection String Configuration
 The application uses connection strings configured in code:

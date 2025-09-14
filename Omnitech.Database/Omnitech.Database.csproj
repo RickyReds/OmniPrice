@@ -88,10 +88,6 @@
       <Project>{af0747b8-0632-490e-9134-39d907859922}</Project>
       <Name>Omnitech.DTO</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Omnitech.IO\Omnitech.IO.csproj">
-      <Project>{41cb33b1-47e4-44fd-91a8-d1ce6e0d59a2}</Project>
-      <Name>Omnitech.IO</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="- CLIENTI\" />

@@ -3,6 +3,7 @@ using Omnitech.Prezzi.Core.Repositories;
 using Omnitech.Prezzi.Core.Services;
 using Omnitech.Prezzi.Infrastructure.Repositories;
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web.Configuration;
@@ -23,38 +24,52 @@ namespace WebApi.Misc.Controllers
         private readonly IDiscountRepository _discountRepository;
         private readonly IOrderRepository _orderRepository;
         private readonly PriceCalculator _priceCalculator;
-        
+
         private readonly string _connectionString;
         private readonly bool _debugMode;
         private readonly string _logFileName;
 
+        private static readonly object _logLock = new object();
+
+        private static void SafeLogToFile(string message)
+        {
+            try
+            {
+                lock (_logLock)
+                {
+                    Directory.CreateDirectory(@"C:\WebApiLog");
+                    File.AppendAllText(@"C:\WebApiLog\ConstructorDebug.log", message + Environment.NewLine);
+                }
+            }
+            catch
+            {
+                // Ignore logging errors to prevent cascading failures
+            }
+        }
+
         public PriceCalculationController()
         {
-            try 
+            try
             {
-                System.IO.File.AppendAllText(@"C:\WebApiLog\ConstructorDebug.log", 
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Constructor started\n");
+                SafeLogToFile($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Constructor started");
 
                 // Configurazione da web.config
                 _connectionString = WebConfigurationManager.AppSettings["ConnectionStringPrezzi"];
                 _debugMode = WebConfigurationManager.AppSettings["LogModeDebug"] == "true";
                 _logFileName = WebConfigurationManager.AppSettings["LogFilename"] ?? @"C:\WebApiLog\Price\LogWebApiPrice.txt";
 
-                System.IO.File.AppendAllText(@"C:\WebApiLog\ConstructorDebug.log", 
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Configuration loaded, connection string length: {_connectionString?.Length ?? 0}\n");
+                SafeLogToFile($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Configuration loaded, connection string length: {_connectionString?.Length ?? 0}");
 
                 // Inizializza repository
                 _priceRepository = new PriceRepository(_connectionString);
                 _customerRepository = new CustomerRepository(_connectionString);
                 _discountRepository = new DiscountRepository(_connectionString);
-                
-                System.IO.File.AppendAllText(@"C:\WebApiLog\ConstructorDebug.log", 
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] About to create QueryManagerOrderRepository\n");
-                
+
+                SafeLogToFile($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] About to create QueryManagerOrderRepository");
+
                 _orderRepository = new QueryManagerOrderRepository(_connectionString);
 
-                System.IO.File.AppendAllText(@"C:\WebApiLog\ConstructorDebug.log", 
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] About to create PriceCalculator\n");
+                SafeLogToFile($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] About to create PriceCalculator");
 
                 // Inizializza calculator
                 _priceCalculator = new PriceCalculator(
@@ -63,13 +78,12 @@ namespace WebApi.Misc.Controllers
                     _discountRepository
                 );
 
-                System.IO.File.AppendAllText(@"C:\WebApiLog\ConstructorDebug.log", 
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Constructor completed successfully\n");
+                SafeLogToFile($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Constructor completed successfully");
             }
             catch (Exception ex)
             {
-                System.IO.File.AppendAllText(@"C:\WebApiLog\ConstructorDebug.log", 
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Constructor failed: {ex.Message}\n{ex.StackTrace}\n");
+                SafeLogToFile($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Constructor failed: {ex.Message}");
+                SafeLogToFile($"StackTrace: {ex.StackTrace}");
                 throw;
             }
         }
