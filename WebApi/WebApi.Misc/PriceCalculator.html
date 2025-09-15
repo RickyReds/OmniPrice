@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniPrice - Calcolo Prezzo - v.3</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .input-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .input-group label {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #333;
+        }
+
+        .input-group input {
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            width: 300px;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 5px 15px rgba(107, 114, 128, 0.4);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            margin: 10px 0;
+            justify-content: center;
+        }
+
+        .status-indicator.running {
+            background-color: #fef3c7;
+            color: #92400e;
+            border: 1px solid #f59e0b;
+        }
+
+        .status-indicator.success {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+
+        .status-indicator.error {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+
+        .status-indicator.idle {
+            background-color: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .timer {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .results-section {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .results-content {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .price-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .price-box {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .price-box.original {
+            border-color: #3b82f6;
+        }
+
+        .price-box.calculated {
+            border-color: #10b981;
+        }
+
+        .price-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .price-box.original .price-value {
+            color: #3b82f6;
+        }
+
+        .price-box.calculated .price-value {
+            color: #10b981;
+        }
+
+        .price-label {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .price-details {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .navigation {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: white;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
+
+        .comparison-indicator {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .comparison-indicator.match {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+
+        .comparison-indicator.mismatch {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+
+        @media (max-width: 768px) {
+            .input-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .input-group input {
+                width: 100%;
+            }
+
+            .price-comparison {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="navigation">
+        <a href="Default.html" class="nav-btn">← Dashboard</a>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>💰 OmniPrice - Calcolo Prezzo - v.3</h1>
+            <p>Sistema di verifica e ricalcolo prezzi</p>
+        </div>
+
+        <!-- Sezione Gestione Connessioni -->
+        <div class="card">
+            <div style="border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; padding-bottom: 15px;">
+                <h3 style="margin: 0 0 15px 0; color: #333; display: flex; align-items: center; gap: 8px;">
+                    🔌 <span>Connessione Database</span>
+                    <span id="connectionStatus" style="font-size: 0.8rem; padding: 4px 8px; border-radius: 12px; background: #f3f4f6; color: #6b7280;">Caricamento...</span>
+                </h3>
+
+                <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label for="connectionSelect" style="font-weight: bold; color: #374151;">Connessione:</label>
+                        <select id="connectionSelect" style="padding: 8px 12px; border: 2px solid #e5e7eb; border-radius: 6px; background: white; font-size: 14px; min-width: 150px;">
+                            <option value="">Caricamento connessioni...</option>
+                        </select>
+                    </div>
+
+                    <button onclick="switchPriceCalculatorConnection()" class="btn" style="padding: 8px 16px; font-size: 14px;">
+                        🔄 Cambia Connessione
+                    </button>
+
+                    <button onclick="testPriceCalculatorConnection()" class="btn btn-secondary" style="padding: 8px 16px; font-size: 14px;">
+                        🧪 Test Connessione
+                    </button>
+                </div>
+
+                <div id="connectionInfo" style="margin-top: 10px; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; font-size: 13px; color: #6b7280; display: none;">
+                    <strong>Dettagli connessione:</strong> <span id="connectionDetails"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="barcodeInput">Barcode:</label>
+                    <input type="text" id="barcodeInput" placeholder="Inserisci il barcode (es: 012027)"
+                           onkeypress="if(event.key==='Enter') calculatePrice()">
+                    <button class="btn" onclick="calculatePrice()" id="btnCalculatePrice">
+                        💰 Calcola Prezzo
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearResults()">
+                        🗑️ Pulisci
+                    </button>
+                </div>
+
+                <div class="status-indicator idle" id="statusIndicator">
+                    <span>⏳</span>
+                    <span>Pronto per il calcolo</span>
+                </div>
+
+                <div class="timer" id="timer" style="display: none;">⏱️ 0.00s</div>
+            </div>
+
+            <div class="results-section" id="resultsSection">
+                <div class="results-content" id="resultsContent">
+                    <!-- I risultati verranno mostrati qui -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let startTime;
+        let timerInterval;
+
+        function updateStatus(type, message) {
+            const indicator = document.getElementById('statusIndicator');
+            indicator.className = `status-indicator ${type}`;
+
+            let icon = '⏳';
+            switch(type) {
+                case 'running': icon = '⏳'; break;
+                case 'success': icon = '✅'; break;
+                case 'error': icon = '❌'; break;
+                case 'idle': icon = '⏳'; break;
+            }
+
+            indicator.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+        }
+
+        function startTimer() {
+            startTime = Date.now();
+            const timerElement = document.getElementById('timer');
+            timerElement.style.display = 'block';
+
+            timerInterval = setInterval(() => {
+                const elapsed = (Date.now() - startTime) / 1000;
+                timerElement.textContent = `⏱️ ${elapsed.toFixed(2)}s`;
+            }, 100);
+        }
+
+        function stopTimer(finalTime) {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+
+            const timerElement = document.getElementById('timer');
+            if (finalTime) {
+                timerElement.textContent = `⏱️ ${finalTime}`;
+            }
+        }
+
+        function calculatePrice() {
+            const barcode = document.getElementById('barcodeInput').value.trim();
+
+            if (!barcode) {
+                updateStatus('error', 'Inserisci un barcode valido');
+                return;
+            }
+
+            updateStatus('running', 'Recupero prezzo salvato...');
+            startTimer();
+
+            // Chiamata all'API per recuperare il prezzo salvato
+            fetch(`http://localhost:54340/api/health/price/saved/${barcode}`)
+                .then(response => response.json())
+                .then(savedData => {
+                    updateStatus('running', 'Ricalcolo del prezzo...');
+
+                    // Chiamata all'API per ricalcolare il prezzo
+                    return fetch(`http://localhost:54340/api/health/price/recalculate/${barcode}`)
+                        .then(response => response.json())
+                        .then(recalcData => {
+                            stopTimer();
+                            updateStatus('success', 'Calcolo completato con successo');
+                            displayResults(savedData, recalcData, barcode);
+                        });
+                })
+                .catch(error => {
+                    stopTimer();
+                    updateStatus('error', `Errore nel calcolo: ${error.message}`);
+                    console.error('Errore:', error);
+                });
+        }
+
+        function displayResults(savedData, calculatedData, barcode) {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsContent = document.getElementById('resultsContent');
+
+            const savedPrice = savedData.price || 0;
+            const calculatedPrice = calculatedData.finalPrice || 0;
+            const difference = Math.abs(savedPrice - calculatedPrice);
+            const isMatch = difference < 0.01; // Tolleranza di 1 centesimo
+
+            let html = `
+                <h3 style="margin-bottom: 20px; color: #333;">Risultati per Barcode: ${barcode}</h3>
+
+                <div class="price-comparison">
+                    <div class="price-box original">
+                        <div class="price-label">💾 Prezzo Salvato</div>
+                        <div class="price-value">€ ${savedPrice.toFixed(2)}</div>
+                        <div class="price-details">
+                            ${savedData.foundDate ? `Trovato in data: ${new Date(savedData.foundDate).toLocaleDateString('it-IT')}` : ''}
+                        </div>
+                    </div>
+
+                    <div class="price-box calculated">
+                        <div class="price-label">🔄 Prezzo Ricalcolato</div>
+                        <div class="price-value">€ ${calculatedPrice.toFixed(2)}</div>
+                        <div class="price-details">
+                            Calcolato il: ${new Date().toLocaleDateString('it-IT')}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="comparison-indicator ${isMatch ? 'match' : 'mismatch'}">
+                    ${isMatch ?
+                        '✅ I prezzi corrispondono! La verifica è positiva.' :
+                        `⚠️ Differenza rilevata: € ${difference.toFixed(2)}`
+                    }
+                </div>
+            `;
+
+            // Aggiungi informazioni sulla connessione utilizzata
+            html += `
+                <div style="margin-top: 20px; padding: 15px; background: #f0f9ff; border-radius: 8px; border: 1px solid #0ea5e9;">
+                    <h4>🔌 Connessione Database</h4>
+                    <div style="margin-top: 10px;">
+                        <strong>Connessione utilizzata:</strong> <span style="color: #0ea5e9; font-weight: bold;">${savedData.connection || calculatedData.connection}</span>
+                        <br>
+                        <small style="color: #64748b;">Questa connessione è stata usata per recuperare e ricalcolare i prezzi</small>
+                    </div>
+                </div>
+            `;
+
+            // Aggiungi dettagli aggiuntivi se disponibili
+            if (savedData.orderDetails) {
+                html += `
+                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <h4>📋 Dettagli Ordine</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px;">
+                            ${savedData.orderDetails.cliente ? `<div><strong>Cliente:</strong> ${savedData.orderDetails.cliente}</div>` : ''}
+                            ${savedData.orderDetails.articolo ? `<div><strong>Articolo:</strong> ${savedData.orderDetails.articolo}</div>` : ''}
+                            ${savedData.orderDetails.quantita ? `<div><strong>Quantità:</strong> ${savedData.orderDetails.quantita}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (calculatedData.calculationDetails) {
+                html += `
+                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <h4>🧮 Dettagli Calcolo</h4>
+                        <div style="font-family: monospace; font-size: 0.9rem; margin-top: 10px;">
+                            ${JSON.stringify(calculatedData.calculationDetails, null, 2).replace(/\n/g, '<br>').replace(/ /g, '&nbsp;')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            resultsContent.innerHTML = html;
+            resultsSection.style.display = 'block';
+        }
+
+        function clearResults() {
+            document.getElementById('barcodeInput').value = '';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('timer').style.display = 'none';
+            updateStatus('idle', 'Pronto per il calcolo');
+
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        // ===== GESTIONE CONNESSIONI INDIPENDENTE =====
+        let priceCalculatorConnection = null;
+
+        function loadPriceCalculatorConnections() {
+            fetch('http://localhost:54340/api/health/connections')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const select = document.getElementById('connectionSelect');
+                        select.innerHTML = '<option value="">Seleziona connessione...</option>';
+
+                        data.connections.forEach(conn => {
+                            const option = document.createElement('option');
+                            option.value = conn.name;
+                            option.textContent = `${conn.name} (${conn.server}${conn.database ? '/' + conn.database : ''})`;
+                            select.appendChild(option);
+                        });
+
+                        // Carica l'ultima connessione usata dal localStorage
+                        const savedConnection = localStorage.getItem('priceCalculator_connection');
+                        if (savedConnection) {
+                            select.value = savedConnection;
+                            priceCalculatorConnection = savedConnection;
+                            updateConnectionStatus(savedConnection, 'Connessione salvata');
+                        } else {
+                            // Se non c'è una connessione salvata, usa la prima disponibile
+                            if (data.connections.length > 0) {
+                                const firstConnection = data.connections[0].name;
+                                select.value = firstConnection;
+                                priceCalculatorConnection = firstConnection;
+                                updateConnectionStatus(firstConnection, 'Connessione predefinita');
+                                localStorage.setItem('priceCalculator_connection', firstConnection);
+                            }
+                        }
+                    } else {
+                        updateConnectionStatus('error', 'Errore caricamento connessioni');
+                    }
+                })
+                .catch(error => {
+                    updateConnectionStatus('error', `Errore: ${error.message}`);
+                });
+        }
+
+        function switchPriceCalculatorConnection() {
+            const select = document.getElementById('connectionSelect');
+            const selectedConnection = select.value;
+
+            if (!selectedConnection) {
+                alert('Seleziona una connessione');
+                return;
+            }
+
+            priceCalculatorConnection = selectedConnection;
+            localStorage.setItem('priceCalculator_connection', selectedConnection);
+            updateConnectionStatus(selectedConnection, 'Connessione cambiata');
+
+            // Mostra dettagli connessione
+            const connectionInfo = document.getElementById('connectionInfo');
+            const connectionDetails = document.getElementById('connectionDetails');
+            connectionDetails.textContent = `Usando connessione '${selectedConnection}' per i calcoli prezzi`;
+            connectionInfo.style.display = 'block';
+
+            setTimeout(() => {
+                connectionInfo.style.display = 'none';
+            }, 3000);
+        }
+
+        function testPriceCalculatorConnection() {
+            if (!priceCalculatorConnection) {
+                alert('Seleziona prima una connessione');
+                return;
+            }
+
+            updateConnectionStatus(priceCalculatorConnection, 'Test in corso...');
+
+            fetch('http://localhost:54340/api/health/connections/test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    connectionName: priceCalculatorConnection
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateConnectionStatus(priceCalculatorConnection, `✅ Test OK (${data.testDuration})`);
+                } else {
+                    updateConnectionStatus(priceCalculatorConnection, `❌ Test fallito: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                updateConnectionStatus(priceCalculatorConnection, `❌ Errore test: ${error.message}`);
+            });
+        }
+
+        function updateConnectionStatus(connection, message) {
+            const statusElement = document.getElementById('connectionStatus');
+            if (connection === 'error') {
+                statusElement.style.background = '#fee2e2';
+                statusElement.style.color = '#dc2626';
+                statusElement.textContent = message;
+            } else {
+                statusElement.style.background = '#d1fae5';
+                statusElement.style.color = '#059669';
+                statusElement.textContent = `${connection} - ${message}`;
+            }
+        }
+
+        function getCurrentPriceConnection() {
+            return priceCalculatorConnection || 'local';
+        }
+
+        // ===== MODIFICATA FUNZIONE CALCOLO PREZZI =====
+        function calculatePrice() {
+            const barcode = document.getElementById('barcodeInput').value.trim();
+
+            if (!barcode) {
+                updateStatus('error', 'Inserisci un barcode valido');
+                return;
+            }
+
+            if (!priceCalculatorConnection) {
+                updateStatus('error', 'Seleziona una connessione database');
+                return;
+            }
+
+            updateStatus('running', 'Recupero prezzo salvato...');
+            startTimer();
+
+            // Prima switch della connessione se necessario
+            const currentConnection = getCurrentPriceConnection();
+            if (currentConnection && currentConnection !== 'local') {
+                // Switcha alla connessione selezionata per i calcoli prezzi
+                fetch('http://localhost:54340/api/health/connections/switch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ connectionName: currentConnection })
+                })
+                .then(() => {
+                    // Dopo aver switchato connessione, esegui i calcoli
+                    executeCalculations(barcode, currentConnection);
+                })
+                .catch(error => {
+                    console.warn('Errore switch connessione, procedo con connessione corrente:', error);
+                    executeCalculations(barcode, currentConnection);
+                });
+            } else {
+                executeCalculations(barcode, currentConnection);
+            }
+        }
+
+        function executeCalculations(barcode, connection) {
+            // Chiamata all'API per recuperare il prezzo salvato
+            fetch(`http://localhost:54340/api/health/price/saved/${barcode}`)
+                .then(response => response.json())
+                .then(savedData => {
+                    updateStatus('running', 'Ricalcolo del prezzo...');
+
+                    // Chiamata all'API per ricalcolare il prezzo
+                    return fetch(`http://localhost:54340/api/health/price/recalculate/${barcode}`)
+                        .then(response => response.json())
+                        .then(recalcData => {
+                            stopTimer();
+                            updateStatus('success', `Calcolo completato con successo (${connection || 'local'})`);
+                            displayResults(savedData, recalcData, barcode);
+                        });
+                })
+                .catch(error => {
+                    stopTimer();
+                    updateStatus('error', `Errore nel calcolo: ${error.message}`);
+                    console.error('Errore:', error);
+                });
+        }
+
+        // Focus automatico sul campo barcode e caricamento connessioni
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('barcodeInput').focus();
+            loadPriceCalculatorConnections();
+        });
+    </script>
+</body>
+</html>

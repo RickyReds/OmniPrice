@@ -211,6 +211,35 @@ namespace WebApi.Misc.Controllers
         /// <summary>
         /// Ottieni statistiche dettagliate dai log
         /// </summary>
+        /// <summary>
+        /// Endpoint temporaneo per testare il calcolo prezzo
+        /// </summary>
+        [HttpGet]
+        [Route("price-test/{barcode}")]
+        public IHttpActionResult PriceTest(string barcode)
+        {
+            try
+            {
+                return Ok(new
+                {
+                    success = true,
+                    barcode = barcode,
+                    message = "Endpoint funzionante - placeholder per calcolo prezzo",
+                    testPrice = 123.45m,
+                    timestamp = DateTime.Now
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    error = ex.Message,
+                    timestamp = DateTime.Now
+                });
+            }
+        }
+
         [HttpGet]
         [Route("statistics")]
         public IHttpActionResult GetDetailedStatistics()
@@ -1049,6 +1078,204 @@ namespace WebApi.Misc.Controllers
                 {
                     success = false,
                     error = ex.Message,
+                    timestamp = DateTime.Now
+                });
+            }
+        }
+
+        /// <summary>
+        /// Recupera il prezzo salvato per un barcode dalla tabella ordini.ordini
+        /// </summary>
+        [HttpGet]
+        [Route("price/saved/{barcode}")]
+        public IHttpActionResult GetSavedPrice(string barcode)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(barcode))
+                {
+                    return BadRequest("Barcode è richiesto");
+                }
+
+                var queryManager = new QueryManager();
+
+                using (var connection = new SqlConnection(ConnectionManager.CurrentConnectionString))
+                {
+                    connection.Open();
+
+                    // Query per recuperare il prezzo salvato dalla tabella ordini.ordini
+                    string sql = @"
+                        SELECT TOP 1
+                            oo.Prezzo as price,
+                            oo.DataInserimento as foundDate
+                        FROM ordini.Ordini oo WITH (NOLOCK)
+                        WHERE oo.Barcode = @barcode
+                        ORDER BY oo.DataInserimento DESC";
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@barcode", barcode);
+                        command.CommandTimeout = 30;
+
+                        using (var reader = command.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                var price = reader["price"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["price"]);
+                                var foundDate = reader["foundDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["foundDate"]);
+
+                                return Ok(new
+                                {
+                                    success = true,
+                                    barcode = barcode,
+                                    price = price,
+                                    foundDate = foundDate,
+                                    orderDetails = new
+                                    {
+                                        message = "Dettagli ordine disponibili - Solo prezzo e data disponibili"
+                                    },
+                                    connection = queryManager.CurrentConnection,
+                                    message = $"Prezzo trovato per barcode {barcode}: €{price:F2}",
+                                    timestamp = DateTime.Now
+                                });
+                            }
+                            else
+                            {
+                                return Ok(new
+                                {
+                                    success = false,
+                                    barcode = barcode,
+                                    connection = queryManager.CurrentConnection,
+                                    error = $"Nessun ordine trovato per il barcode {barcode}",
+                                    timestamp = DateTime.Now
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    barcode = barcode,
+                    error = $"Errore nel recupero prezzo: {ex.Message}",
+                    timestamp = DateTime.Now
+                });
+            }
+        }
+
+        /// <summary>
+        /// Ricalcola il prezzo per un barcode usando l'algoritmo di calcolo
+        /// </summary>
+        [HttpGet]
+        [Route("price/recalculate/{barcode}")]
+        public IHttpActionResult RecalculatePrice(string barcode)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(barcode))
+                {
+                    return BadRequest("Barcode è richiesto");
+                }
+
+                var queryManager = new QueryManager();
+
+                // Per ora, implementiamo un calcolo di esempio che:
+                // 1. Recupera i dati dell'ordine
+                // 2. Applica una logica di calcolo simulata
+                // In futuro, qui andrà l'algoritmo di calcolo reale
+
+                using (var connection = new SqlConnection(ConnectionManager.CurrentConnectionString))
+                {
+                    connection.Open();
+
+                    // Recupera i dati necessari per il calcolo
+                    string sql = @"
+                        SELECT TOP 1
+                            oo.CodiceArticolo,
+                            oo.Cliente,
+                            oo.Quantita,
+                            oo.DataInserimento,
+                            oo.Prezzo as OriginalPrice
+                        FROM ordini.Ordini oo WITH (NOLOCK)
+                        WHERE oo.Barcode = @barcode
+                        ORDER BY oo.DataInserimento DESC";
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@barcode", barcode);
+                        command.CommandTimeout = 30;
+
+                        using (var reader = command.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                var codiceArticolo = reader["CodiceArticolo"] == DBNull.Value ? null : reader["CodiceArticolo"].ToString();
+                                var cliente = reader["Cliente"] == DBNull.Value ? null : reader["Cliente"].ToString();
+                                var quantita = reader["Quantita"] == DBNull.Value ? 1 : Convert.ToInt32(reader["Quantita"]);
+                                var originalPrice = reader["OriginalPrice"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["OriginalPrice"]);
+
+                                // Algoritmo di calcolo simulato - DA IMPLEMENTARE
+                                // Per ora restituiamo lo stesso prezzo originale come placeholder
+                                decimal calculatedPrice = originalPrice;
+
+                                // Dettagli del calcolo simulato
+                                var calculationDetails = new
+                                {
+                                    basePrice = originalPrice,
+                                    quantityMultiplier = quantita,
+                                    customerDiscount = 0m,
+                                    finalPrice = calculatedPrice,
+                                    calculationMethod = "Algoritmo placeholder - da implementare",
+                                    factors = new[]
+                                    {
+                                        "Prezzo base recuperato da ordine esistente",
+                                        "Nessun calcolo aggiuntivo applicato (placeholder)",
+                                        "Algoritmo di calcolo da sviluppare"
+                                    }
+                                };
+
+                                return Ok(new
+                                {
+                                    success = true,
+                                    barcode = barcode,
+                                    finalPrice = calculatedPrice,
+                                    calculationDetails = calculationDetails,
+                                    orderData = new
+                                    {
+                                        codiceArticolo = codiceArticolo,
+                                        cliente = cliente,
+                                        quantita = quantita
+                                    },
+                                    connection = queryManager.CurrentConnection,
+                                    message = $"Prezzo ricalcolato per barcode {barcode}: €{calculatedPrice:F2}",
+                                    timestamp = DateTime.Now
+                                });
+                            }
+                            else
+                            {
+                                return Ok(new
+                                {
+                                    success = false,
+                                    barcode = barcode,
+                                    connection = queryManager.CurrentConnection,
+                                    error = $"Nessun ordine trovato per il barcode {barcode} per il ricalcolo",
+                                    timestamp = DateTime.Now
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    barcode = barcode,
+                    error = $"Errore nel ricalcolo prezzo: {ex.Message}",
                     timestamp = DateTime.Now
                 });
             }
