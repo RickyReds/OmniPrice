@@ -648,6 +648,7 @@ namespace WebApi.Misc.Controllers
                         success = true,
                         queryId = queryId,
                         duration = $"{duration:F2}s",
+                        connection = queryManager.CurrentConnection,
                         executedQuery = queryManager.ExecutedQuery,
                         rowCount = queryManager.DT?.Rows.Count ?? 0,
                         data = result,
@@ -657,13 +658,17 @@ namespace WebApi.Misc.Controllers
                 }
                 else
                 {
+                    // 0 risultati è un risultato valido, non un errore
                     return Ok(new
                     {
-                        success = false,
+                        success = true,
                         queryId = queryId,
                         duration = $"{duration:F2}s",
+                        connection = queryManager.CurrentConnection,
                         executedQuery = queryManager.ExecutedQuery,
-                        message = $"Query {queryId} eseguita ma nessun risultato trovato",
+                        rowCount = 0,
+                        data = new object[0], // Array vuoto
+                        message = $"Query {queryId} eseguita con successo - Nessun record trovato (0 risultati)",
                         timestamp = DateTime.Now
                     });
                 }
@@ -708,21 +713,78 @@ namespace WebApi.Misc.Controllers
                 var parameters = new List<object>();
                 var parameterNumbers = new List<int>();
 
-                // Cerca parametri {0}, {1}, {2}, etc.
-                for (int i = 0; i < 10; i++)
+                // Log della query per debug
+                System.IO.File.AppendAllText(@"C:\WebApiLog\QueryTemplateDebug.log",
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Query {queryId} analysis:\n{rawQuery}\n\n");
+
+                // Usa Regex per trovare TUTTI i parametri {numero} nella query
+                var regex = new System.Text.RegularExpressions.Regex(@"\{(\d+)\}");
+                var matches = regex.Matches(rawQuery);
+                var foundIndices = new HashSet<int>();
+
+                foreach (System.Text.RegularExpressions.Match match in matches)
                 {
-                    if (rawQuery.Contains("{" + i + "}"))
+                    if (int.TryParse(match.Groups[1].Value, out int index))
                     {
-                        parameterNumbers.Add(i);
-                        parameters.Add(new {
-                            index = i,
-                            placeholder = "{" + i + "}",
-                            name = i == 0 ? "Barcode" : $"Parametro {i}",
-                            required = true,
-                            defaultValue = i == 0 ? "012027" : ""
-                        });
+                        if (foundIndices.Add(index)) // Add restituisce true se l'elemento è nuovo
+                        {
+                            parameterNumbers.Add(index);
+
+                            // Analizza il contesto per determinare il tipo di parametro
+                            string paramName = $"Parametro {index + 1}";
+                            string defaultVal = "";
+
+                            // Cerca il contesto attorno al parametro
+                            int startPos = Math.Max(0, match.Index - 50);
+                            int length = Math.Min(100, rawQuery.Length - startPos);
+                            string context = rawQuery.Substring(startPos, length).ToUpper();
+
+                            // Determina il tipo di parametro in base al contesto
+                            if (context.Contains("[USER]") || context.Contains("USER"))
+                            {
+                                paramName = "User";
+                                defaultVal = "ADMIN";
+                            }
+                            else if (context.Contains("BARCODE") || context.Contains("CODICE"))
+                            {
+                                paramName = "Barcode";
+                                defaultVal = "012027";
+                            }
+                            else if (context.Contains("CLIENT") || context.Contains("CUSTOMER"))
+                            {
+                                paramName = "Cliente";
+                                defaultVal = "1001";
+                            }
+                            else if (context.Contains("DATE") || context.Contains("DATA"))
+                            {
+                                paramName = "Data";
+                                defaultVal = DateTime.Now.ToString("yyyy-MM-dd");
+                            }
+                            else if (index == 0)
+                            {
+                                // Fallback per {0} quando non riconosciamo il contesto - ora usa "Parametro 1"
+                                defaultVal = "012027";
+                            }
+
+                            parameters.Add(new {
+                                index = index,
+                                placeholder = "{" + index + "}",
+                                name = paramName,
+                                required = true,
+                                defaultValue = defaultVal
+                            });
+
+                            // Log del parametro trovato con contesto
+                            System.IO.File.AppendAllText(@"C:\WebApiLog\QueryTemplateDebug.log",
+                                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Parametro trovato: {{{index}}} alla posizione {match.Index}\n" +
+                                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Contesto: {context}\n" +
+                                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Tipo rilevato: {paramName}\n");
+                        }
                     }
                 }
+
+                // Ordina i parametri per indice
+                parameters = parameters.OrderBy(p => ((dynamic)p).index).ToList();
 
                 // Cerca anche parametri con nomi specifici (per dictionary replacements)
                 var dictionaryParams = new List<object>();
@@ -745,6 +807,7 @@ namespace WebApi.Misc.Controllers
                 {
                     success = true,
                     queryId = queryId,
+                    connection = queryManager.CurrentConnection,
                     rawQuery = rawQuery,
                     parameters = parameters,
                     dictionaryParameters = dictionaryParams,
@@ -755,9 +818,11 @@ namespace WebApi.Misc.Controllers
             }
             catch (Exception ex)
             {
+                var queryManager = new QueryManager();
                 return Ok(new
                 {
                     success = false,
+                    connection = queryManager.CurrentConnection,
                     error = $"Errore recupero template Query {queryId}: {ex.Message}",
                     timestamp = DateTime.Now
                 });

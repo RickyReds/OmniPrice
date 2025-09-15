@@ -281,7 +281,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔧 OmniPrice Web API - v.20</h1>
+            <h1>🔧 OmniPrice Web API - v.21</h1>
             <p>Sistema di calcolo prezzi estratto da PsR - Dashboard di controllo</p>
         </div>
 
@@ -706,6 +706,11 @@
                     icon.textContent = '✓';
                     text.textContent = timestamp + ' - OK';
                     break;
+                case 'success-empty':
+                    icon.className += ' success';
+                    icon.textContent = '✓';
+                    text.textContent = timestamp + ' - OK - !! Nessun risultato !!';
+                    break;
                 case 'error':
                     icon.className += ' error';
                     icon.textContent = '✗';
@@ -1042,8 +1047,8 @@
                     queryTemplateData = data;
                     displayQueryTemplate(data);
                 } else {
-                    updateStatusIndicator('queryTemplate-status', 'error');
-                    showToast('❌ Errore caricamento template: ' + (data.error || data.message), 'error');
+                    updateStatusIndicator('queryTemplate-status', 'success-empty');
+                    showToast('⚠️ Query ID non trovato: ' + queryId, 'warning');
                     queryTemplateData = null;
                     hideQueryParametersSection();
                 }
@@ -1078,6 +1083,21 @@
             // Show query preview
             document.getElementById('queryPreview').textContent = data.rawQuery;
             document.getElementById('queryPreviewSection').style.display = 'block';
+
+            // Show connection info if available
+            if (data.connection) {
+                var connectionInfo = document.createElement('div');
+                connectionInfo.style.cssText = 'margin: 10px 0; padding: 8px; background-color: #f3f4f6; border-left: 4px solid #3b82f6; font-size: 13px; color: #374151;';
+                connectionInfo.innerHTML = '<strong>Connessione:</strong> ' + data.connection;
+
+                var queryPreviewSection = document.getElementById('queryPreviewSection');
+                var existingConnectionInfo = queryPreviewSection.querySelector('.connection-info');
+                if (existingConnectionInfo) {
+                    existingConnectionInfo.remove();
+                }
+                connectionInfo.className = 'connection-info';
+                queryPreviewSection.appendChild(connectionInfo);
+            }
 
             // Generate parameter inputs
             var container = document.getElementById('queryParametersContainer');
@@ -1116,6 +1136,8 @@
         function hideQueryParametersSection() {
             document.getElementById('queryParametersSection').style.display = 'none';
             document.getElementById('queryPreviewSection').style.display = 'none';
+            // Also clear previous Step 2 execution results
+            document.getElementById('queryManagerResults').style.display = 'none';
         }
 
         // Step 2: Execute Query with Parameters
@@ -1180,8 +1202,14 @@
             })
             .then(function(data) {
                 if (data.success) {
-                    updateStatusIndicator('queryManager-status', 'success');
-                    showToast('✅ Query ' + queryTemplateData.queryId + ' eseguita con successo!', 'success');
+                    // Check if query returned 0 results
+                    if (data.rowCount === 0) {
+                        updateStatusIndicator('queryManager-status', 'success-empty');
+                        showToast('✅ Query ' + queryTemplateData.queryId + ' eseguita - Nessun risultato trovato', 'success');
+                    } else {
+                        updateStatusIndicator('queryManager-status', 'success');
+                        showToast('✅ Query ' + queryTemplateData.queryId + ' eseguita con successo!', 'success');
+                    }
                     stopTimer('queryManager', 'queryManagerTimer', data.duration || 'N/A');
                     displayQueryManagerResults(data);
                 } else {
@@ -1225,12 +1253,21 @@
 
             resultsDiv.style.display = 'block';
 
-            var html = '<div style="margin: 10px 0; color: #059669; font-weight: bold;">Query ' + data.queryId + ' eseguita con successo!</div>';
+            // Clear previous results first
+            contentDiv.innerHTML = '';
 
-            // Get current connection name from the dashboard display
-            var currentConnName = document.getElementById('currentConnName') ? document.getElementById('currentConnName').textContent : 'N/A';
+            var html;
+            if (data.rowCount === 0) {
+                html = '<div style="margin: 10px 0; color: #059669; font-weight: bold;">Query ' + data.queryId + ' eseguita con successo!</div>';
+                html += '<div style="margin: 10px 0; color: #f59e0b; font-weight: bold; background-color: #fef3c7; padding: 8px; border-radius: 4px; border: 1px solid #f59e0b;">!! Nessun risultato trovato !!</div>';
+            } else {
+                html = '<div style="margin: 10px 0; color: #059669; font-weight: bold;">Query ' + data.queryId + ' eseguita con successo!</div>';
+            }
 
-            html += '<div style="margin: 5px 0;"><strong>Connessione:</strong> <span style="color: #4f46e5; font-weight: bold;">' + currentConnName + '</span></div>';
+            // Use connection info from the server response, fallback to dashboard display
+            var connectionName = data.connection || (document.getElementById('currentConnName') ? document.getElementById('currentConnName').textContent : 'N/A');
+
+            html += '<div style="margin: 5px 0;"><strong>Connessione:</strong> <span style="color: #4f46e5; font-weight: bold;">' + connectionName + '</span></div>';
             html += '<div style="margin: 5px 0;"><strong>Durata:</strong> ' + data.duration + '</div>';
             html += '<div style="margin: 5px 0;"><strong>Righe trovate:</strong> ' + data.rowCount + '</div>';
 
