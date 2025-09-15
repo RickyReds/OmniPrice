@@ -2,6 +2,64 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+# 🇮🇹 DOCUMENTAZIONE IN ITALIANO
+
+## 📋 Panoramica Progetto
+
+OmniPrice Web API è una soluzione completa .NET Framework 4.7.2 per il calcolo prezzi, estratta dal sistema PsR (ProductionStepRecorder) con funzionalità avanzate di gestione query e connessioni database multiple.
+
+## 🔧 Comandi Principali
+
+### Compilazione Soluzione
+```bash
+msbuild WebApi.sln /p:Configuration=Debug
+msbuild WebApi.sln /p:Configuration=Release
+```
+
+### Avvio Web API
+Il progetto WebApi.Misc è configurato per funzionare su IIS Express:
+- **URL sviluppo**: http://localhost:54340/
+- **URL SSL**: https://localhost:44342/
+
+### 📊 Dashboard Interattiva
+Accedi alla dashboard completa su `http://localhost:54340/` che include:
+- **🔌 Gestione Connessioni Database** - Switch tra local/dual con test real-time
+- **🔢 Query Manager 2-Step** - Caricamento template e esecuzione parametrica con bottoni stop
+- **🔍 SQL Personalizzate** - Esecuzione query arbitrarie con timer
+- **🚀 Monitoraggio Salute** - Stato API e database in tempo reale
+- **📈 Statistiche** - Metriche esecuzione e prestazioni
+
+## 🔌 Sistema Gestione Connessioni
+
+### Connessioni Predefinite
+- **local**: Caricata da Web.config (AvanzamentoProduzione)
+- **dual**: 192.168.1.90 con credenziali SQL Server
+
+### Configurazione ConnectionManager
+```csharp
+// File: Omnitech.Prezzi.Infrastructure/ConnectionManager.cs
+private static readonly Dictionary<string, string> _connections = new Dictionary<string, string>
+{
+    { "local", null }, // Caricata da config
+    { "dual", "Data Source=192.168.1.90;Initial Catalog=AvanzamentoProduzione;..." }
+};
+```
+
+### API Gestione Connessioni
+```
+GET /api/health/connections              # Lista connessioni
+POST /api/health/connections/switch     # Cambia connessione
+POST /api/health/connections/test       # Testa connessione
+POST /api/health/connections/add        # Aggiungi connessione
+DELETE /api/health/connections/{name}   # Rimuovi connessione
+```
+
+---
+
+# 🇬🇧 ENGLISH DOCUMENTATION
+
 ## Build and Development Commands
 
 ### Building the Solution
