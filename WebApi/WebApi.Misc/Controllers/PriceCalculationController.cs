@@ -20,6 +20,7 @@ namespace WebApi.Misc.Controllers
     public class PriceCalculationController : ApiController
     {
         private readonly IPriceRepository _priceRepository;
+        private readonly IListiniRepository _listiniRepository;
         private readonly ICustomerRepository _customerRepository;
         private readonly IDiscountRepository _discountRepository;
         private readonly IOrderRepository _orderRepository;
@@ -54,14 +55,15 @@ namespace WebApi.Misc.Controllers
                 SafeLogToFile($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Constructor started");
 
                 // Configurazione da web.config
-                _connectionString = WebConfigurationManager.AppSettings["ConnectionStringPrezzi"];
+                _connectionString = Omnitech.Prezzi.Infrastructure.ConnectionManager.CurrentConnectionString;
                 _debugMode = WebConfigurationManager.AppSettings["LogModeDebug"] == "true";
                 _logFileName = WebConfigurationManager.AppSettings["LogFilename"] ?? @"C:\WebApiLog\Price\LogWebApiPrice.txt";
 
-                SafeLogToFile($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Configuration loaded, connection string length: {_connectionString?.Length ?? 0}");
+                SafeLogToFile($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Configuration loaded, using connection: {Omnitech.Prezzi.Infrastructure.ConnectionManager.CurrentConnectionName}, length: {_connectionString?.Length ?? 0}");
 
                 // Inizializza repository
                 _priceRepository = new PriceRepository(_connectionString);
+                _listiniRepository = new ListiniRepository(Omnitech.Prezzi.Infrastructure.ConnectionManager.GetConnectionString("dual"));
                 _customerRepository = new CustomerRepository(_connectionString);
                 _discountRepository = new DiscountRepository(_connectionString);
 
@@ -74,6 +76,7 @@ namespace WebApi.Misc.Controllers
                 // Inizializza calculator
                 _priceCalculator = new PriceCalculator(
                     _priceRepository,
+                    _listiniRepository,
                     _customerRepository,
                     _discountRepository
                 );
@@ -109,10 +112,10 @@ namespace WebApi.Misc.Controllers
                 
                 try
                 {
-                    System.IO.File.AppendAllText(@"C:\WebApiLog\ControllerDebug.log", 
-                        $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] About to call GetOrderByBarcode for: {barcode}\n");
-                    
-                    order = _orderRepository.GetOrderByBarcode(barcode);
+                    System.IO.File.AppendAllText(@"C:\WebApiLog\ControllerDebug.log",
+                        $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] About to call GetOrderByBarcodeUsingQuery516 for: {barcode}\n");
+
+                    order = _orderRepository.GetOrderByBarcodeUsingQuery516(barcode);
                     sqlQuery = (_orderRepository as OrderRepository)?.LastExecutedQuery;
                 }
                 catch (Exception dbEx)
@@ -143,7 +146,123 @@ namespace WebApi.Misc.Controllers
 
                 // Calcola prezzo
                 var result = await Task.Run(() => _priceCalculator.CalculatePrice(order));
-                
+
+                // CARICAMENTO AUTOMATICO DATI CLIENTE (Replica logica PsR cAzienda)
+                try
+                {
+                    // Replica il flusso PsR: dopo Query 516 (ordine), carica cliente completo con Query 88 + 775
+                    var completeCustomer = _customerRepository.GetCompleteCustomerInfo(order.CustomerId);
+                    if (completeCustomer != null)
+                    {
+                        // Sostituisce il customer dell'ordine con quello completo di aumenti/sconti
+                        order.Customer = completeCustomer;
+                    }
+                }
+                catch (Exception customerEx)
+                {
+                    SafeLogToFile($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Errore caricamento cliente completo: {customerEx.Message}");
+                }
+
+                // AGGIUNTA IMMEDIATA: Popola Notes per "Dettaglio Ordine" - Richiesta utente "Più info a Notes"
+                try
+                {
+                    result.Notes.Clear(); // Pulisce eventuali note esistenti
+                    result.Notes.Add("=== DETTAGLI ORDINE (Controller direct) ===");
+                    result.Notes.Add($"Barcode: {order.Barcode}");
+                    result.Notes.Add($"Cliente: {order.Customer?.CompanyName ?? "N/D"} (ID: {order.CustomerId})");
+                    result.Notes.Add($"Data ordine: {order.OrderDate:dd/MM/yyyy}");
+
+                    result.Notes.Add("=== SPECIFICHE TECNICHE ===");
+                    result.Notes.Add($"Materiale: {order.Material} (Codice: {(int)order.Material})");
+                    result.Notes.Add($"Texture: {order.Texture}");
+                    result.Notes.Add($"Dimensioni: {order.Dimensions?.FormattedDimensions ?? "N/D"} mm");
+                    result.Notes.Add($"Tipo articolo principale: {order.MainArticleType}");
+
+                    if (order.Stamp != null)
+                    {
+                        result.Notes.Add($"Stampo: ID {order.Stamp.StampId}");
+                    }
+
+                    result.Notes.Add("=== DETTAGLI LAVORAZIONE ===");
+                    result.Notes.Add($"Numero vasche: {order.NumberOfBaths}");
+                    result.Notes.Add($"Imballo robusto: {(order.RobustPackaging ? "Sì" : "No")}");
+                    result.Notes.Add($"Modello: {order.Model ?? "Standard"}");
+                    result.Notes.Add($"Quantità: {order.Quantity}");
+
+                    result.Notes.Add("=== PREZZI E CONDIZIONI ===");
+                    result.Notes.Add($"Prezzo esistente: €{order.ExistingPrice:F2}");
+                    result.Notes.Add($"Prezzo automatico: €{order.AutomaticPrice:F2}");
+                    result.Notes.Add($"Prezzo calcolato: €{result.FinalPrice:F2}");
+                    result.Notes.Add($"Limite profondità TVI: {order.Customer?.DepthLimitForTVI ?? 0} mm");
+                    if (order.Customer?.HasCustomPriceList == true)
+                    {
+                        result.Notes.Add("Cliente ha listino personalizzato");
+                    }
+
+                    result.Notes.Add("=== SCONTI & AUMENTI ===");
+                    if (order.Customer != null)
+                    {
+                        result.Notes.Add($"Sconto generale cliente: {order.Customer.GeneralDiscount:F1}%");
+                        result.Notes.Add($"Aumento accessori: {order.Customer.AccessoryIncrease:F1}%");
+                        result.Notes.Add($"Aumento lavorazioni: {order.Customer.WorkingIncrease:F1}%");
+                        result.Notes.Add($"Metodo aumenti: {(order.Customer.UseNewIncreaseMethod ? "Nuovo (dettagliato)" : "Classico")}");
+
+                        // Mostra flag cliente importanti per pricing
+                        if (order.Customer.HasContract)
+                            result.Notes.Add("✓ Cliente sotto contratto");
+                        if (order.Customer.IRC)
+                            result.Notes.Add("✓ Integrazione Rivendite Cliente attiva");
+                        if (order.Customer.HasOwnBrand)
+                            result.Notes.Add("✓ Brand personalizzato");
+                        if (order.Customer.IsLinearMeterPriceList)
+                            result.Notes.Add("✓ Listino metro lineare");
+                        if (order.Customer.HasNewPriceList)
+                            result.Notes.Add("✓ Nuovo listino generale");
+                        if (order.Customer.HasNewOndaPriceList)
+                            result.Notes.Add("✓ Nuovo listino Onda");
+
+                        // Mostra aumenti specifici se presenti (metodo nuovo)
+                        if (order.Customer.UseNewIncreaseMethod && order.Customer.SpecificIncreases?.Count > 0)
+                        {
+                            result.Notes.Add($"Aumenti specifici: {order.Customer.SpecificIncreases.Count} voci");
+
+                            // Mostra sempre i primi 3 aumenti
+                            var displayIncreases = order.Customer.SpecificIncreases.Take(3);
+                            foreach (var increase in displayIncreases)
+                            {
+                                result.Notes.Add($"  • {increase.Description}: +{increase.IncreasePercentage:F1}%");
+                            }
+
+                            // Se ci sono più di 3 aumenti, aggiungi un marcatore speciale per l'espansione
+                            if (order.Customer.SpecificIncreases.Count > 3)
+                            {
+                                result.Notes.Add($"  • ... e altri {order.Customer.SpecificIncreases.Count - 3} aumenti [EXPANDABLE:INCREASES:{order.Customer.CustomerId}]");
+
+                                // Aggiungi metadata nascosto con tutti gli aumenti per l'interfaccia
+                                result.Notes.Add("<!-- HIDDEN_INCREASES_START -->");
+                                foreach (var increase in order.Customer.SpecificIncreases.Skip(3))
+                                {
+                                    result.Notes.Add($"  • {increase.Description}: +{increase.IncreasePercentage:F1}%");
+                                }
+                                result.Notes.Add("<!-- HIDDEN_INCREASES_END -->");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        result.Notes.Add("Nessun dato cliente disponibile per sconti/aumenti");
+                    }
+
+                    result.Notes.Add("=== INFORMAZIONI SISTEMA ===");
+                    result.Notes.Add($"Elaborato: {DateTime.Now:dd/MM/yyyy HH:mm:ss}");
+                    result.Notes.Add("Modalità: POPULAZIONE CONTROLLER (Direct)");
+                    result.Notes.Add("Stato: Informazioni dettagliate aggiunte dal controller");
+                }
+                catch (Exception noteEx)
+                {
+                    result.Notes.Add($"Errore popolazione note: {noteEx.Message}");
+                }
+
                 // Aggiungi la query SQL al risultato per debug
                 if (_orderRepository is QueryManagerOrderRepository queryManagerRepo)
                 {
@@ -274,7 +393,7 @@ namespace WebApi.Misc.Controllers
                     $"[GetPriceDetails] Richiesta dettagli per barcode: {barcode}", 
                     _debugMode);
 
-                var order = await Task.Run(() => _orderRepository.GetOrderByBarcode(barcode));
+                var order = await Task.Run(() => _orderRepository.GetOrderByBarcodeUsingQuery516(barcode));
                 
                 if (order == null)
                 {
@@ -335,7 +454,7 @@ namespace WebApi.Misc.Controllers
                 {
                     try
                     {
-                        var order = _orderRepository.GetOrderByBarcode(barcode);
+                        var order = _orderRepository.GetOrderByBarcodeUsingQuery516(barcode);
                         
                         if (order != null)
                         {
@@ -696,6 +815,67 @@ namespace WebApi.Misc.Controllers
             catch (Exception ex)
             {
                 return InternalServerError(new Exception($"Save query failed: {ex.Message}", ex));
+            }
+        }
+
+        /// <summary>
+        /// Debug endpoint per vedere come viene mappato un ordine
+        /// </summary>
+        [Route("debug/order/{barcode}")]
+        [HttpGet]
+        public IHttpActionResult DebugOrder(string barcode)
+        {
+            try
+            {
+                FileLogger.LogDebugWithTimestamp(_logFileName,
+                    $"[DebugOrder] Getting order for barcode: {barcode}",
+                    _debugMode);
+
+                var order = _orderRepository.GetOrderByBarcodeUsingQuery516(barcode);
+
+                if (order == null)
+                {
+                    return Ok(new {
+                        Error = "Order not found",
+                        Barcode = barcode
+                    });
+                }
+
+                return Ok(new {
+                    Order = new {
+                        order.Barcode,
+                        order.CustomerId,
+                        Material = order.Material.ToString() + " (" + (int)order.Material + ")",
+                        Dimensions = new {
+                            order.Dimensions?.Length,
+                            order.Dimensions?.Depth,
+                            order.Dimensions?.Height,
+                            IsValid = order.Dimensions?.IsValid()
+                        },
+                        Stamp = new {
+                            order.Stamp?.StampId,
+                            order.Stamp?.StampCode,
+                            IsValid = order.Stamp?.IsValid()
+                        },
+                        MainArticleType = order.MainArticleType.ToString() + " (" + (int)order.MainArticleType + ")",
+                        OrderIsValid = order.IsValid()
+                    },
+                    ValidationChecks = new {
+                        BarcodeOK = !string.IsNullOrEmpty(order.Barcode),
+                        CustomerIdOK = order.CustomerId > 0,
+                        MaterialOK = order.Material != Omnitech.Prezzi.Core.Enums.Material.Undefined,
+                        DimensionsOK = order.Dimensions != null && order.Dimensions.IsValid(),
+                        StampOK = order.Stamp != null && order.Stamp.IsValid()
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogDebugWithTimestamp(_logFileName,
+                    $"[DebugOrder] Error: {ex.Message}",
+                    _debugMode);
+
+                return InternalServerError(ex);
             }
         }
 

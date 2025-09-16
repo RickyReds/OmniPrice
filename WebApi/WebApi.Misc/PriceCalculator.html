@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OmniPrice - Calcolo Prezzo - v.3</title>
+    <title>OmniPrice - Calcolo Prezzo - v.5</title>
     <style>
         * {
             margin: 0;
@@ -288,7 +288,7 @@
 
     <div class="container">
         <div class="header">
-            <h1>💰 OmniPrice - Calcolo Prezzo - v.3</h1>
+            <h1>💰 OmniPrice - Calcolo Prezzo - v.4</h1>
             <p>Sistema di verifica e ricalcolo prezzi</p>
         </div>
 
@@ -395,38 +395,6 @@
             }
         }
 
-        function calculatePrice() {
-            const barcode = document.getElementById('barcodeInput').value.trim();
-
-            if (!barcode) {
-                updateStatus('error', 'Inserisci un barcode valido');
-                return;
-            }
-
-            updateStatus('running', 'Recupero prezzo salvato...');
-            startTimer();
-
-            // Chiamata all'API per recuperare il prezzo salvato
-            fetch(`http://localhost:54340/api/health/price/saved/${barcode}`)
-                .then(response => response.json())
-                .then(savedData => {
-                    updateStatus('running', 'Ricalcolo del prezzo...');
-
-                    // Chiamata all'API per ricalcolare il prezzo
-                    return fetch(`http://localhost:54340/api/health/price/recalculate/${barcode}`)
-                        .then(response => response.json())
-                        .then(recalcData => {
-                            stopTimer();
-                            updateStatus('success', 'Calcolo completato con successo');
-                            displayResults(savedData, recalcData, barcode);
-                        });
-                })
-                .catch(error => {
-                    stopTimer();
-                    updateStatus('error', `Errore nel calcolo: ${error.message}`);
-                    console.error('Errore:', error);
-                });
-        }
 
         function displayResults(savedData, calculatedData, barcode) {
             const resultsSection = document.getElementById('resultsSection');
@@ -478,11 +446,65 @@
                 </div>
             `;
 
-            // Aggiungi dettagli aggiuntivi se disponibili
+            // Aggiungi dettagli dall'API v2 utilizzando le Notes
+            if (calculatedData.Notes && calculatedData.Notes.length > 0) {
+                html += `
+                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <h4>📋 Dettaglio Ordine</h4>
+                        <div style="margin-top: 15px; font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.4;">
+                `;
+
+                // Formatta le Notes in modo leggibile con supporto espansione aumenti
+                let isInHiddenIncreases = false;
+                let hiddenIncreasesId = 'hiddenIncreases_' + Date.now();
+
+                calculatedData.Notes.forEach(note => {
+                    // Gestisci marcatori nascosti per aumenti
+                    if (note.includes('<!-- HIDDEN_INCREASES_START -->')) {
+                        isInHiddenIncreases = true;
+                        html += `<div id="${hiddenIncreasesId}" style="display: none;">`;
+                        return;
+                    }
+                    if (note.includes('<!-- HIDDEN_INCREASES_END -->')) {
+                        isInHiddenIncreases = false;
+                        html += `</div>`;
+                        return;
+                    }
+
+                    if (note.startsWith('===')) {
+                        // Intestazioni principali
+                        html += `<div style="font-weight: bold; color: #2563eb; margin-top: 15px; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;">${note.replace(/=/g, '').trim()}</div>`;
+                    } else if (note.trim()) {
+                        // Controlla se è una riga espandibile per aumenti
+                        if (note.includes('[EXPANDABLE:INCREASES:')) {
+                            const expandableText = note.replace(/\[EXPANDABLE:INCREASES:\d+\]/, '');
+                            html += `
+                                <div style="margin-left: 10px; margin-bottom: 4px; color: #374151;">
+                                    ${expandableText.split(' [EXPANDABLE')[0]}
+                                    <span
+                                        style="color: #2563eb; cursor: pointer; text-decoration: underline; font-weight: bold;"
+                                        onclick="toggleIncreases('${hiddenIncreasesId}', this)"
+                                        title="Clicca per mostrare/nascondere tutti gli aumenti"
+                                    >📋 mostra/nascondi tutti</span>
+                                </div>`;
+                        } else {
+                            // Contenuto normale
+                            html += `<div style="margin-left: 10px; margin-bottom: 4px; color: #374151;">${note}</div>`;
+                        }
+                    }
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Aggiungi dettagli legacy per compatibilità
             if (savedData.orderDetails) {
                 html += `
                     <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                        <h4>📋 Dettagli Ordine</h4>
+                        <h4>📋 Dettagli Ordine (Legacy)</h4>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px;">
                             ${savedData.orderDetails.cliente ? `<div><strong>Cliente:</strong> ${savedData.orderDetails.cliente}</div>` : ''}
                             ${savedData.orderDetails.articolo ? `<div><strong>Articolo:</strong> ${savedData.orderDetails.articolo}</div>` : ''}
@@ -647,6 +669,9 @@
                 return;
             }
 
+            // Salva l'ultimo barcode utilizzato
+            saveLastBarcode(barcode);
+
             updateStatus('running', 'Recupero prezzo salvato...');
             startTimer();
 
@@ -681,8 +706,8 @@
                 .then(savedData => {
                     updateStatus('running', 'Ricalcolo del prezzo...');
 
-                    // Chiamata all'API per ricalcolare il prezzo
-                    return fetch(`http://localhost:54340/api/health/price/recalculate/${barcode}`)
+                    // Chiamata all'API per ricalcolare il prezzo con dettagli completi
+                    return fetch(`http://localhost:54340/api/v2/price/calculate/${barcode}`)
                         .then(response => response.json())
                         .then(recalcData => {
                             stopTimer();
@@ -697,10 +722,46 @@
                 });
         }
 
+        // Salva l'ultimo barcode utilizzato
+        function saveLastBarcode(barcode) {
+            if (barcode && barcode.trim()) {
+                localStorage.setItem('priceCalculator_lastBarcode', barcode.trim());
+            }
+        }
+
+        // Carica l'ultimo barcode utilizzato
+        function loadLastBarcode() {
+            const lastBarcode = localStorage.getItem('priceCalculator_lastBarcode');
+            if (lastBarcode) {
+                const barcodeInput = document.getElementById('barcodeInput');
+                barcodeInput.value = lastBarcode;
+                barcodeInput.placeholder = `Ultimo barcode: ${lastBarcode}`;
+                // Seleziona il testo per facilitare la sovrascrittura se necessario
+                barcodeInput.select();
+            }
+        }
+
+        // Funzione per mostrare/nascondere gli aumenti specifici
+        function toggleIncreases(hiddenIncreasesId, element) {
+            const hiddenDiv = document.getElementById(hiddenIncreasesId);
+            if (hiddenDiv) {
+                if (hiddenDiv.style.display === 'none') {
+                    hiddenDiv.style.display = 'block';
+                    element.innerHTML = '📋 nascondi dettagli';
+                    element.title = 'Clicca per nascondere gli aumenti dettagliati';
+                } else {
+                    hiddenDiv.style.display = 'none';
+                    element.innerHTML = '📋 mostra/nascondi tutti';
+                    element.title = 'Clicca per mostrare/nascondere tutti gli aumenti';
+                }
+            }
+        }
+
         // Focus automatico sul campo barcode e caricamento connessioni
         document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('barcodeInput').focus();
             loadPriceCalculatorConnections();
+            loadLastBarcode();
+            document.getElementById('barcodeInput').focus();
         });
     </script>
 </body>
